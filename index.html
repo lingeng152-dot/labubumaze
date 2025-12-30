@@ -3,41 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>M.O.L: Maze of Labubu</title>
+    <title>M.O.L 3D - Maze of Labubu</title>
     <style>
-        /* 保持你截图里的粉嫩简约感 */
-        :root { --pink: #ff477e; --bg: #f8f0ff; }
-        body { margin: 0; background: var(--bg); font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; height: 100vh; overflow: hidden; }
-        
-        /* 顶部 HUD 1:1 还原你截图的效果 */
-        .hud { width: 90%; margin-top: 15px; padding: 15px; background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); border-radius: 24px; display: flex; justify-content: space-around; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        :root { --pink: #ff477e; --bg: #f3e8ff; --wall: #ffffff; --floor: #fff0f5; }
+        body { margin: 0; padding: 0; background: var(--bg); font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; height: 100vh; overflow: hidden; perspective: 1200px; }
+
+        /* 顶部 HUD */
+        .hud { width: 90%; margin-top: 15px; padding: 12px; background: rgba(255,255,255,0.7); backdrop-filter: blur(15px); border-radius: 20px; display: flex; justify-content: space-around; box-shadow: 0 8px 32px rgba(0,0,0,0.05); z-index: 100; border: 1px solid white; }
         .hud-item { text-align: center; }
-        .hud-val { display: block; font-weight: bold; color: var(--pink); font-size: 1.1rem; }
-        .hud-label { font-size: 0.6rem; color: #999; text-transform: uppercase; }
+        .hud-val { display: block; font-weight: 900; color: var(--pink); font-size: 1.1rem; }
+        .hud-label { font-size: 0.6rem; color: #999; }
 
-        #game-view { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; }
-        canvas { border: 8px solid white; border-radius: 32px; background: #fff; box-shadow: 0 10px 40px rgba(0,0,0,0.08); }
+        /* 3D 舞台容器 */
+        #stage { flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; transform-style: preserve-3d; }
+        
+        /* 迷宫容器 - 倾斜 3D 效果 */
+        #maze-container { 
+            position: relative; 
+            transform-style: preserve-3d; 
+            transform: rotateX(45deg) rotateZ(-25deg); 
+            transition: 0.5s ease;
+        }
 
-        /* 虚拟按键还原你截图的样式 */
-        .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 40px; }
-        .joy-btn { width: 60px; height: 60px; background: white; border-radius: 20px; border: none; font-size: 1.4rem; color: var(--pink); box-shadow: 0 4px 12px rgba(0,0,0,0.05); cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .joy-btn:active { transform: scale(0.95); background: #fff1f5; }
+        .cell { 
+            position: absolute; width: 40px; height: 40px; 
+            transform-style: preserve-3d;
+        }
 
-        /* 初始隐藏菜单 */
-        .overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.9); backdrop-filter: blur(20px); z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .logo-text { font-size: 4rem; color: var(--pink); font-weight: 900; letter-spacing: -3px; margin: 0; }
-        .start-btn { margin-top: 30px; background: var(--pink); color: white; border: none; padding: 18px 60px; border-radius: 40px; font-weight: bold; font-size: 1.2rem; box-shadow: 0 10px 25px rgba(255,71,126,0.3); }
+        /* 3D 墙壁：做成方块感 */
+        .wall { 
+            background: var(--wall); 
+            box-shadow: inset 0 0 10px rgba(255,71,126,0.1);
+        }
+        .wall::before { /* 侧面深度 */
+            content: ''; position: absolute; width: 100%; height: 20px; 
+            background: #eee; transform: rotateX(-90deg) translateY(-10px); top: 0;
+        }
+        .wall::after { /* 另一个侧面 */
+            content: ''; position: absolute; width: 20px; height: 100%; 
+            background: #ddd; transform: rotateY(90deg) translateX(10px); left: 0;
+        }
+
+        /* 地板 */
+        .path { background: var(--floor); box-shadow: inset 0 0 5px rgba(0,0,0,0.02); }
+
+        /* 3D 角色 - 就像海报里的公仔立牌 */
+        #player {
+            position: absolute; width: 34px; height: 34px;
+            background-size: contain; background-repeat: no-repeat;
+            background-position: center bottom;
+            transform: rotateX(-45deg) rotateZ(25deg) translateZ(20px);
+            transition: 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            filter: drop-shadow(0 15px 10px rgba(0,0,0,0.2));
+            z-index: 10;
+        }
+
+        /* 操作按钮 */
+        .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 40px; z-index: 100; }
+        .joy-btn { width: 60px; height: 60px; background: white; border-radius: 20px; border: none; font-size: 1.5rem; color: var(--pink); box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+
+        /* 菜单选人 */
+        .overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.9); backdrop-filter: blur(15px); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .char-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 20px 0; }
+        .char-item { width: 80px; padding: 10px; background: white; border-radius: 15px; border: 2px solid #eee; text-align: center; font-size: 0.6rem; }
+        .char-item.active { border-color: var(--pink); background: #fff1f5; }
     </style>
 </head>
 <body>
 
     <div class="hud">
-        <div class="hud-item"><span class="hud-label">LEVEL</span><span id="lvD" class="hud-val">1</span></div>
+        <div class="hud-item"><span class="hud-label">LV.</span><span id="lvD" class="hud-val">1</span></div>
         <div class="hud-item"><span class="hud-label">TIME</span><span id="tmD" class="hud-val">00:00</span></div>
         <div class="hud-item"><span class="hud-label">HERO</span><span id="hrD" class="hud-val">心动粉</span></div>
     </div>
 
-    <div id="game-view"><canvas id="mainCvs"></canvas></div>
+    <div id="stage">
+        <div id="maze-container"></div>
+    </div>
 
     <div class="controls">
         <div></div><button class="joy-btn" onclick="move('u')">↑</button><div></div>
@@ -46,85 +88,110 @@
         <button class="joy-btn" onclick="move('r')">→</button>
     </div>
 
-    <div id="startLayer" class="overlay">
-        <h1 class="logo-text">M.O.L</h1>
-        <p style="color:#999; letter-spacing:4px">MAZE OF LABUBU</p >
-        <button class="start-btn" onclick="startGame()">GO ADVENTURE!</button>
+    <div id="menu" class="overlay">
+        <h1 style="color:var(--pink); font-size:3rem; margin:0;">M.O.L 3D</h1>
+        <div class="char-grid" id="charGrid"></div>
+        <button onclick="start()" style="background:var(--pink); color:white; border:none; padding:15px 60px; border-radius:30px; font-weight:bold;">ENTER BOX</button>
     </div>
 
 <script>
-    const cvs = document.getElementById('mainCvs');
-    const ctx = cvs.getContext('2d');
-    
-    // 重点：角色图片对象
-    const heroImg = new Image();
-    // 你可以把这里的 URL 换成你自己抠出来的透明 Labubu PNG 图片地址
-    heroImg.src = 'https://img.icons8.com/color/96/monster-icon.png'; 
+    const container = document.getElementById('maze-container');
+    const roles = {
+        pink: { name: '心动粉', color: '#ff92ac', icon: '😈' },
+        green: { name: '平静绿', color: '#a8e6cf', icon: '🦖' },
+        blue: { name: '希望蓝', color: '#a2d2ff', icon: '💎' },
+        zimomo: { name: '本我(ID)', color: '#444444', icon: '👑', locked: true }
+    };
 
-    let state = { level: 1, seconds: 0 };
-    let maze, player, rows, size;
+    let state = { level: 1, char: 'pink', pos: {x:1, y:1}, maze: [] };
+    const size = 40;
 
-    function startGame() {
-        document.getElementById('startLayer').style.display = 'none';
-        initMaze();
-        setInterval(() => {
-            state.seconds++;
-            const m = Math.floor(state.seconds/60).toString().padStart(2,'0');
-            const s = (state.seconds%60).toString().padStart(2,'0');
-            document.getElementById('tmD').innerText = `${m}:${s}`;
-        }, 1000);
+    function renderMenu() {
+        const grid = document.getElementById('charGrid');
+        grid.innerHTML = '';
+        Object.keys(roles).forEach(k => {
+            const r = roles[k];
+            const div = document.createElement('div');
+            div.className = `char-item ${state.char === k ? 'active' : ''}`;
+            div.innerHTML = `<div style="font-size:1.5rem">${r.icon}</div>${r.name}`;
+            div.onclick = () => { state.char = k; renderMenu(); };
+            grid.appendChild(div);
+        });
     }
 
-    function initMaze() {
-        let b = 7 + state.level;
-        rows = b % 2 === 0 ? b + 1 : b;
-        const dS = Math.min(window.innerWidth * 0.85, 400);
-        cvs.width = cvs.height = dS;
-        size = dS / rows;
-        maze = Array.from({length:rows},()=>Array(rows).fill(1));
-        
+    function createMaze(dim) {
+        let m = Array.from({length:dim}, () => Array(dim).fill(1));
         const walk = (x, y) => {
-            maze[x][y] = 0;
+            m[x][y] = 0;
             [[0,2],[0,-2],[2,0],[-2,0]].sort(()=>Math.random()-0.5).forEach(([dx,dy])=>{
-                if(x+dx>0 && x+dx<rows-1 && y+dy>0 && y+dy<rows-1 && maze[x+dx][y+dy]==1){
-                    maze[x+dx/2][y+dy/2]=0; walk(x+dx, y+dy);
+                let nx=x+dx, ny=y+dy;
+                if(nx>0 && nx<dim-1 && ny>0 && ny<dim-1 && m[nx][ny]==1){
+                    m[x+dx/2][y+dy/2]=0; walk(nx, ny);
                 }
             });
         };
-        walk(1,1); player = {x:1, y:1};
-        draw();
+        walk(1,1);
+        return m;
     }
 
-    function draw() {
-        ctx.clearRect(0,0,cvs.width,cvs.height);
-        for(let x=0;x<rows;x++){
-            for(let y=0;y<rows;y++){
-                if(maze[x][y]==1){ 
-                    ctx.fillStyle="#fff1f5"; // 迷宫墙壁颜色
-                    ctx.fillRect(y*size, x*size, size, size); 
-                }
-                if(x==rows-2&&y==rows-2){ 
-                    ctx.fillStyle="#fbbf24"; // 终点金色
-                    ctx.fillRect(y*size+size*0.2, x*size+size*0.2, size*0.6, size*0.6); 
-                }
+    function drawMaze() {
+        container.innerHTML = '';
+        const dim = state.maze.length;
+        container.style.width = container.style.height = `${dim * size}px`;
+        
+        for(let r=0; r<dim; r++) {
+            for(let c=0; c<dim; c++) {
+                const cell = document.createElement('div');
+                cell.className = `cell ${state.maze[r][c] ? 'wall' : 'path'}`;
+                cell.style.left = `${c * size}px`;
+                cell.style.top = `${r * size}px`;
+                if(r === dim-2 && c === dim-2) cell.style.background = '#fbbf24';
+                container.appendChild(cell);
             }
         }
-        // 使用图片绘制角色，完美还原质感
-        ctx.drawImage(heroImg, player.y*size, player.x*size, size, size);
+        
+        const p = document.createElement('div');
+        p.id = 'player';
+        p.style.backgroundColor = roles[state.char].color;
+        // 关键：这里直接放一个占位符，你可以把背景图换成海报里的 Labubu
+        p.innerText = roles[state.char].icon;
+        p.style.fontSize = "24px";
+        p.style.display = "flex";
+        p.style.alignItems = "center";
+        p.style.justifyContent = "center";
+        p.style.borderRadius = "10px";
+        container.appendChild(p);
+        updatePlayer();
+    }
+
+    function updatePlayer() {
+        const p = document.getElementById('player');
+        p.style.left = `${state.pos.y * size + 3}px`;
+        p.style.top = `${state.pos.x * size + 3}px`;
     }
 
     window.move = (d) => {
-        let nx=player.x, ny=player.y;
-        if(d=='u')nx--; if(d=='d')nx++; if(d=='l')ny--; if(d=='r')ny++;
-        if(maze[nx] && maze[nx][ny]==0){
-            player.x=nx; player.y=ny; draw();
-            if(nx==rows-2 && ny==rows-2) {
-                state.level++; 
+        let {x, y} = state.pos;
+        if(d=='u') x--; if(d=='d') x++; if(d=='l') y--; if(d=='r') y++;
+        if(state.maze[x] && state.maze[x][y] === 0) {
+            state.pos = {x, y};
+            updatePlayer();
+            if(x === state.maze.length-2 && y === state.maze.length-2) {
+                state.level++;
                 document.getElementById('lvD').innerText = state.level;
-                initMaze();
+                start();
             }
         }
     };
+
+    function start() {
+        document.getElementById('menu').style.display = 'none';
+        state.maze = createMaze(11 + Math.min(state.level*2, 20));
+        state.pos = {x:1, y:1};
+        drawMaze();
+    }
+
+    renderMenu();
 </script>
 </body>
 </html>
