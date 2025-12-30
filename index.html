@@ -4,99 +4,94 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>M.O.L 3D - Macaron Series</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.staticfile.org/three.js/r128/three.min.js"></script>
     <style>
         :root { --green: #2ecc71; --stone: #4a5568; --bg: #f3f0ff; }
         * { touch-action: none; -webkit-user-select: none; outline: none; box-sizing: border-box; }
-        body { margin: 0; background: var(--bg); overflow: hidden; font-family: sans-serif; width: 100vw; height: 100vh; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); overflow: hidden; font-family: -apple-system, sans-serif; }
         
-        /* 1. 选人界面：完美适配你图中的7个角色 */
-        #selectLayer { position: fixed; inset: 0; background: #fdfbff; z-index: 3000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .hero-list { display: flex; gap: 12px; overflow-x: auto; width: 100%; padding: 20px; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
+        /* 选人界面层级 */
+        #selectLayer { 
+            position: absolute; inset: 0; background: #fdfbff; z-index: 4000; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+        }
+        .hero-list { display: flex; gap: 12px; overflow-x: auto; width: 100%; padding: 20px; scroll-snap-type: x mandatory; }
         .hero-card { 
-            min-width: 110px; padding: 15px; border-radius: 20px; border: 2px solid #eee; 
-            background: white; transition: 0.3s; scroll-snap-align: center; text-align: center;
+            min-width: 100px; padding: 15px; border-radius: 20px; border: 2px solid #eee; 
+            background: white; scroll-snap-align: center; text-align: center; 
         }
-        .hero-card.active { border-color: var(--green); background: #f0fff4; transform: scale(1.05); box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
-        .hero-icon { width: 50px; height: 50px; border-radius: 50%; margin: 0 auto 10px; border: 2px solid rgba(0,0,0,0.05); }
-        .hero-name { font-size: 0.9rem; font-weight: bold; color: #444; display: block; }
-        .hero-label { font-size: 0.6rem; color: #999; text-transform: uppercase; }
+        .hero-card.active { border-color: var(--green); background: #f0fff4; transform: scale(1.05); }
+        .hero-icon { width: 45px; height: 45px; border-radius: 50%; margin: 0 auto 10px; }
 
-        /* 2. 游戏内 UI：修复空白的关键是确保层级正确 */
-        #ui { position: fixed; top: 20px; width: 90%; left: 5%; z-index: 1000; display: none; }
-        .hud { background: rgba(255,255,255,0.9); backdrop-filter: blur(15px); border-radius: 25px; padding: 15px; border: 1px solid white; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
-        .stats { display: flex; justify-content: space-around; align-items: center; margin-bottom: 10px; }
-        .hud-val { color: var(--green); font-weight: 900; font-size: 1.1rem; }
-        .hud-label { font-size: 0.6rem; color: #999; font-weight: bold; margin-right: 4px; }
+        /* 游戏 UI */
+        #ui { position: absolute; top: 20px; width: 90%; left: 5%; z-index: 2000; display: none; pointer-events: none; }
+        .hud { background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); border-radius: 20px; padding: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .stats { display: flex; justify-content: space-around; margin-bottom: 8px; }
+        .hud-val { color: var(--green); font-weight: 900; }
         .progress-container { width: 100%; height: 6px; background: #eee; border-radius: 3px; overflow: hidden; }
-        #progressBar { height: 100%; width: 0%; background: var(--green); transition: width 0.3s; }
+        #progressBar { height: 100%; width: 0%; background: var(--green); }
 
-        /* 3. 操作按钮 */
-        #controls { position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%); display: none; grid-template-columns: repeat(3, 1fr); gap: 15px; z-index: 1000; }
-        .btn { 
-            width: 72px; height: 72px; background: white; border-radius: 24px; border: none; 
-            font-size: 1.8rem; color: var(--green); box-shadow: 0 6px 0 #d5ede0;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #d5ede0; }
-        .start-btn { background: var(--green); color: white; border: none; padding: 18px 70px; border-radius: 35px; font-weight: bold; font-size: 1.1rem; margin-top: 25px; }
-        
-        #gameCanvas { position: absolute; top: 0; left: 0; z-index: 1; }
+        /* 操作键 */
+        #controls { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); display: none; grid-template-columns: repeat(3, 1fr); gap: 15px; z-index: 2000; }
+        .btn { width: 70px; height: 70px; background: white; border-radius: 22px; border: none; font-size: 1.5rem; color: var(--green); box-shadow: 0 5px 0 #d5ede0; display: flex; align-items: center; justify-content: center; }
+        .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #d5ede0; }
+        .start-btn { background: var(--green); color: white; border: none; padding: 15px 60px; border-radius: 30px; font-weight: bold; margin-top: 20px; }
+
+        /* 画布强制定位 */
+        #gameCanvasContainer { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 100; }
     </style>
 </head>
 <body>
 
     <div id="selectLayer">
-        <h2 style="color:var(--stone); margin-bottom:5px;">心动马卡龙系列</h2>
-        <p style="color:#aaa; font-size:0.7rem; margin-bottom:20px;">左右滑动选择你的 Labubu</p >
+        <h2 style="color:var(--stone); margin:0;">THE MONSTERS</h2>
+        <p style="color:#aaa; font-size:0.8rem; margin-bottom:15px;">心动马卡龙系列</p >
         <div class="hero-list" id="heroList"></div>
-        <button class="start-btn" onclick="launch()">确认进入</button>
+        <button class="start-btn" onclick="launch()">开始冒险</button>
+        <p id="errorMsg" style="color:red; font-size:0.7rem; margin-top:10px; display:none;">引擎加载中，请稍候...</p >
     </div>
 
     <div id="ui">
         <div class="hud">
             <div class="stats">
-                <div><span class="hud-label">LEVEL</span><span id="lvD" class="hud-val">1</span></div>
-                <div><span class="hud-label">PROGRESS</span><span id="progText" class="hud-val">0%</span></div>
-                <div><span class="hud-label">TIME</span><span id="tmD" class="hud-val">00:00</span></div>
+                <div><span style="font-size:0.6rem; color:#999;">LV</span> <span id="lvD" class="hud-val">1</span></div>
+                <div><span style="font-size:0.6rem; color:#999;">进度</span> <span id="progText" class="hud-val">0%</span></div>
+                <div><span style="font-size:0.6rem; color:#999;">时间</span> <span id="tmD" class="hud-val">00:00</span></div>
             </div>
             <div class="progress-container"><div id="progressBar"></div></div>
         </div>
     </div>
 
     <div id="controls">
-        <div></div><button class="btn" onclick="move('u')">↑</button><div></div>
-        <button class="btn" onclick="move('l')">←</button>
-        <button class="btn" onclick="move('d')">↓</button>
-        <button class="btn" onclick="move('r')">→</button>
+        <div></div><button class="btn" onclick="move('u')">▲</button><div></div>
+        <button class="btn" onclick="move('l')">◀</button>
+        <button class="btn" onclick="move('d')">▼</button>
+        <button class="btn" onclick="move('r')">▶</button>
     </div>
 
+    <div id="gameCanvasContainer"></div>
+
 <script>
-    // 对应图中 7 个角色
     const LABUBUS = [
-        { name: "爱", label: "LOVE", color: 0xe63946, skin: 0xffb3b3 },
-        { name: "欢乐", label: "HAPPINESS", color: 0xffd166, skin: 0xfff3b0 },
-        { name: "忠诚", label: "LOYALTY", color: 0xffb7ff, skin: 0xffe0ff },
-        { name: "平静", label: "SERENITY", color: 0x2ecc71, skin: 0xd4edda },
-        { name: "希望", label: "HOPE", color: 0x48cae4, skin: 0xcadef0 },
-        { name: "幸运", label: "LUCK", color: 0xcdb4db, skin: 0xf2e9f7 },
-        { name: "本我", label: "ID", color: 0x4a5568, skin: 0xa0aec0 }
+        { name: "爱", color: 0xe63946, skin: 0xffb3b3 },
+        { name: "欢乐", color: 0xffd166, skin: 0xfff3b0 },
+        { name: "忠诚", color: 0xffb7ff, skin: 0xffe0ff },
+        { name: "平静", color: 0x2ecc71, skin: 0xd4edda },
+        { name: "希望", color: 0x48cae4, skin: 0xcadef0 },
+        { name: "幸运", color: 0xcdb4db, skin: 0xf2e9f7 },
+        { name: "本我", color: 0x4a5568, skin: 0xa0aec0 }
     ];
 
     let selectedIdx = 0, scene, camera, renderer, player, mazeGroup;
     let state = { r: 1, c: 1, lv: 1, maze: [], time: 0, totalDist: 0 };
     const step = 10;
 
-    // 渲染选人卡片
+    // 1. 初始化列表
     const listEl = document.getElementById('heroList');
     LABUBUS.forEach((l, i) => {
         const card = document.createElement('div');
         card.className = `hero-card ${i===0?'active':''}`;
-        card.innerHTML = `
-            <div class="hero-icon" style="background:#${l.color.toString(16)}"></div>
-            <span class="hero-name">${l.name}</span>
-            <span class="hero-label">${l.label}</span>
-        `;
+        card.innerHTML = `<div class="hero-icon" style="background:#${l.color.toString(16)}"></div><span style="font-size:0.8rem; font-weight:bold;">${l.name}</span>`;
         card.onclick = () => {
             document.querySelectorAll('.hero-card').forEach(c => c.classList.remove('active'));
             card.classList.add('active'); selectedIdx = i;
@@ -104,47 +99,33 @@
         listEl.appendChild(card);
     });
 
-    function createCuteHero(cfg) {
-        const group = new THREE.Group();
-        const bodyMat = new THREE.MeshStandardMaterial({ color: cfg.color, roughness: 0.5 });
-        const faceMat = new THREE.MeshStandardMaterial({ color: cfg.skin });
-        
-        // 身体
-        const body = new THREE.Mesh(new THREE.CapsuleGeometry(3.5, 4, 12, 12), bodyMat);
-        body.position.y = 5; body.castShadow = true; group.add(body);
-        
-        // 耳朵
-        const earGeo = new THREE.CapsuleGeometry(0.8, 5, 4, 8);
-        const el = new THREE.Mesh(earGeo, bodyMat); el.position.set(-2, 11, 0); el.rotation.z = 0.2; group.add(el);
-        const er = el.clone(); er.position.x = 2; er.rotation.z = -0.2; group.add(er);
-        
-        // 脸
-        const face = new THREE.Mesh(new THREE.SphereGeometry(2.8, 12, 12, 0, Math.PI*2, 0, Math.PI/2), faceMat);
-        face.position.set(0, 6.5, 2.5); face.rotation.x = Math.PI/2; group.add(face);
-        
-        return group;
-    }
+    // 2. 初始化引擎（核心修复）
+    function initEngine() {
+        if (typeof THREE === 'undefined') {
+            document.getElementById('errorMsg').style.display = 'block';
+            return false;
+        }
 
-    function init() {
+        const container = document.getElementById('gameCanvasContainer');
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0xf3f0ff);
-        scene.fog = new THREE.Fog(0xf3f0ff, 50, 200);
-
-        camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1500);
+        
+        camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(0, 110, 85);
 
-        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.shadowMap.enabled = true;
-        renderer.domElement.id = "gameCanvas";
-        document.body.appendChild(renderer.domElement);
+        container.appendChild(renderer.domElement);
 
         const sun = new THREE.DirectionalLight(0xffffff, 1.2);
         sun.position.set(40, 100, 40); sun.castShadow = true;
-        scene.add(sun); scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        scene.add(sun); scene.add(new THREE.AmbientLight(0xffffff, 0.5));
 
         createMaze();
         animate();
+        return true;
     }
 
     function createMaze() {
@@ -161,7 +142,7 @@
             });
         };
         walk(1,1);
-        state.maze[dim-2][dim-2] = 0; state.maze[dim-2][dim-3] = 0;
+        state.maze[dim-2][dim-2] = 0;
         state.totalDist = Math.sqrt(Math.pow(dim-3, 2)*2);
 
         const wallMat = new THREE.MeshStandardMaterial({ color: 0x4a5568 });
@@ -174,7 +155,7 @@
                 } else if(r===dim-2 && c===dim-2) {
                     const goal = new THREE.Mesh(new THREE.CylinderGeometry(4,4,2,32), new THREE.MeshStandardMaterial({color: 0xfbbf24, emissive:0xffd700}));
                     goal.position.set(px, 1, pz); mazeGroup.add(goal);
-                    const beam = new THREE.Mesh(new THREE.CylinderGeometry(2,2,400,16), new THREE.MeshBasicMaterial({color: 0xfbbf24, transparent: true, opacity: 0.3}));
+                    const beam = new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.5,400,16), new THREE.MeshBasicMaterial({color: 0xfbbf24, transparent: true, opacity: 0.3}));
                     beam.position.set(px, 200, pz); mazeGroup.add(beam);
                 }
             }
@@ -182,20 +163,20 @@
         scene.add(mazeGroup);
 
         if(player) scene.remove(player);
-        player = createCuteHero(LABUBUS[selectedIdx]);
-        scene.add(player);
-        state.r = 1; state.c = 1;
-        updatePlayer();
+        const cfg = LABUBUS[selectedIdx];
+        const pGroup = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.CapsuleGeometry(3, 4, 10, 10), new THREE.MeshStandardMaterial({color: cfg.color}));
+        body.position.y = 5; pGroup.add(body);
+        const ear = new THREE.Mesh(new THREE.CapsuleGeometry(0.7, 5, 4, 8), body.material);
+        const e1 = ear.clone(); e1.position.set(-1.8, 10, 0); pGroup.add(e1);
+        const e2 = ear.clone(); e2.position.set(1.8, 10, 0); pGroup.add(e2);
+        player = pGroup; scene.add(player);
+        state.r = 1; state.c = 1; updatePlayer();
     }
 
     function updatePlayer() {
         const dim = state.maze.length;
         player.position.set(state.c*step-(dim*step/2), 0, state.r*step-(dim*step/2));
-        updateProgress();
-    }
-
-    function updateProgress() {
-        const dim = state.maze.length;
         const curDist = Math.sqrt(Math.pow(dim-2-state.r, 2) + Math.pow(dim-2-state.c, 2));
         let p = Math.max(0, Math.min(100, Math.round(((state.totalDist - curDist) / state.totalDist) * 100)));
         document.getElementById('progressBar').style.width = p + '%';
@@ -215,10 +196,7 @@
 
     window.move = (dir) => {
         let nr = state.r, nc = state.c;
-        if(dir=='u') { nr--; player.rotation.y = Math.PI; }
-        if(dir=='d') { nr++; player.rotation.y = 0; }
-        if(dir=='l') { nc--; player.rotation.y = -Math.PI/2; }
-        if(dir=='r') { nc++; player.rotation.y = Math.PI/2; }
+        if(dir=='u') nr--; if(dir=='d') nr++; if(dir=='l') nc--; if(dir=='r') nc++;
         if(state.maze[nr] && state.maze[nr][nc] === 0) {
             state.r = nr; state.c = nc; updatePlayer();
             if(nr === state.maze.length-2 && nc === state.maze.length-2) {
@@ -228,15 +206,16 @@
     };
 
     window.launch = () => {
-        document.getElementById('selectLayer').style.display = 'none';
-        document.getElementById('ui').style.display = 'block';
-        document.getElementById('controls').style.display = 'grid';
-        init();
-        setInterval(() => {
-            state.time++;
-            const s = (state.time%60).toString().padStart(2,'0'), m = Math.floor(state.time/60).toString().padStart(2,'0');
-            document.getElementById('tmD').innerText = `${m}:${s}`;
-        }, 1000);
+        if(initEngine()) {
+            document.getElementById('selectLayer').style.display = 'none';
+            document.getElementById('ui').style.display = 'block';
+            document.getElementById('controls').style.display = 'grid';
+            setInterval(() => {
+                state.time++;
+                const s = (state.time%60).toString().padStart(2,'0'), m = Math.floor(state.time/60).toString().padStart(2,'0');
+                document.getElementById('tmD').innerText = `${m}:${s}`;
+            }, 1000);
+        }
     };
 
     window.addEventListener('resize', () => {
