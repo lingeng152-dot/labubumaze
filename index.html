@@ -3,22 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>M.O.L 3D - Pro Jungle</title>
+    <title>M.O.L 3D - Ultimate Forest</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         :root { --green: #2ecc71; --bg: #e8f8f5; }
         body { margin: 0; background: var(--bg); overflow: hidden; font-family: sans-serif; }
         
-        /* 顶部状态栏 */
+        /* 顶部 HUD */
         #ui { position: fixed; top: 15px; width: 90%; left: 5%; z-index: 100; pointer-events: none; }
-        .hud { display: flex; justify-content: space-around; padding: 15px; background: rgba(255,255,255,0.9); border-radius: 24px; box-shadow: 0 8px 32px rgba(46,204,113,0.15); border: 1.5px solid white; }
-        .hud-val { color: var(--green); font-weight: 900; font-size: 1.2rem; display: block; text-align: center; }
-        .hud-label { color: #8899a6; font-size: 0.65rem; font-weight: bold; }
+        .hud { display: flex; justify-content: space-around; padding: 12px; background: rgba(255,255,255,0.9); border-radius: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); border: 1px solid white; }
+        .hud-val { color: var(--green); font-weight: 900; font-size: 1.1rem; display: block; text-align: center; }
+        .hud-label { color: #888; font-size: 0.6rem; font-weight: bold; }
 
-        /* 方向键 */
-        #controls { position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; z-index: 100; }
-        .btn { width: 70px; height: 70px; background: white; border-radius: 24px; border: none; font-size: 1.8rem; color: var(--green); box-shadow: 0 6px 0 #d1f2eb; display: flex; align-items: center; justify-content: center; pointer-events: auto; }
-        .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #d1f2eb; }
+        /* 操作按钮 */
+        #controls { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; z-index: 100; }
+        .btn { width: 65px; height: 65px; background: white; border-radius: 20px; border: none; font-size: 1.5rem; color: var(--green); box-shadow: 0 5px 0 #d1f2eb; pointer-events: auto; outline: none; -webkit-tap-highlight-color: transparent; }
+        .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #d1f2eb; }
+
+        /* 欢迎界面 */
+        #startLayer { position: fixed; inset: 0; background: var(--bg); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.5s; }
+        .start-btn { background: var(--green); color: white; border: none; padding: 15px 50px; border-radius: 30px; font-weight: bold; font-size: 1.1rem; box-shadow: 0 8px 20px rgba(46,204,113,0.3); margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -37,41 +41,40 @@
         <button class="btn" onclick="move('r')">→</button>
     </div>
 
+    <div id="startLayer">
+        <h1 style="color:var(--green); font-size:3rem; margin:0;">M.O.L 3D</h1>
+        <p style="color:#888; letter-spacing:3px;">GREEN FOREST MAZE</p >
+        <button class="start-btn" onclick="launchGame()">ENTER GAME</button>
+    </div>
+
 <script>
     let scene, camera, renderer, player, mazeGroup;
-    let state = { r: 1, c: 1, lv: 1, maze: [] };
+    let state = { r: 1, c: 1, lv: 1, maze: [], time: 0 };
     const step = 10; 
 
-    // 生成藤蔓纹理
-    function getVineTexture() {
-        const size = 128;
+    // 生成墙壁纹理
+    function createTexture() {
         const canvas = document.createElement('canvas');
-        canvas.width = size; canvas.height = size;
+        canvas.width = 128; canvas.height = 128;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#ffffff'; 
-        ctx.fillRect(0,0,size,size);
-        // 画一些绿色叶片
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,128,128);
         ctx.fillStyle = '#2ecc71';
-        for(let i=0; i<30; i++) {
+        for(let i=0; i<40; i++) {
             ctx.beginPath();
-            let x = Math.random()*size, y = Math.random()*size;
-            ctx.ellipse(x, y, 6, 3, Math.random()*Math.PI, 0, Math.PI*2);
+            ctx.ellipse(Math.random()*128, Math.random()*128, 6, 3, Math.random()*3, 0, 7);
             ctx.fill();
         }
-        const tex = new THREE.CanvasTexture(canvas);
-        tex.repeat.set(1, 1);
-        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-        return tex;
+        return new THREE.CanvasTexture(canvas);
     }
 
     function init() {
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0xe8f8f5);
-        scene.fog = new THREE.Fog(0xe8f8f5, 20, 120);
+        scene.fog = new THREE.Fog(0xe8f8f5, 20, 150);
 
-        // 视角放大：FOV 调至 75
-        camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 60, 50); 
+        // 视角设置：更宽的视野
+        camera = new THREE.PerspectiveCamera(65, window.innerWidth/window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 70, 60); 
 
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -79,7 +82,7 @@
         document.body.appendChild(renderer.domElement);
 
         const sun = new THREE.DirectionalLight(0xffffff, 1);
-        sun.position.set(20, 60, 20);
+        sun.position.set(30, 60, 30);
         sun.castShadow = true;
         scene.add(sun);
         scene.add(new THREE.AmbientLight(0xffffff, 0.6));
@@ -92,7 +95,7 @@
         if(mazeGroup) scene.remove(mazeGroup);
         mazeGroup = new THREE.Group();
         
-        const dim = 11 + (state.lv % 5); 
+        const dim = 11 + Math.min(state.lv, 6);
         state.maze = Array.from({length:dim},()=>Array(dim).fill(1));
         const walk = (r, c) => {
             state.maze[r][c] = 0;
@@ -104,10 +107,10 @@
         };
         walk(1,1);
 
-        const vineTex = getVineTexture();
-        const wallMat = new THREE.MeshStandardMaterial({ map: vineTex, roughness: 0.8 });
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0xa9dfbf }); 
-        const wallGeo = new THREE.BoxGeometry(step, 18, step);
+        const tex = createTexture();
+        const wallMat = new THREE.MeshStandardMaterial({ map: tex });
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0xa9dfbf });
+        const wallGeo = new THREE.BoxGeometry(step, 16, step);
         const floorGeo = new THREE.PlaneGeometry(step, step);
 
         for(let r=0; r<dim; r++) {
@@ -116,7 +119,7 @@
                 const pz = r*step - (dim*step/2);
                 if(state.maze[r][c] === 1) {
                     const wall = new THREE.Mesh(wallGeo, wallMat);
-                    wall.position.set(px, 9, pz);
+                    wall.position.set(px, 8, pz);
                     wall.castShadow = true;
                     wall.receiveShadow = true;
                     mazeGroup.add(wall);
@@ -126,8 +129,8 @@
                     floor.position.set(px, 0, pz);
                     floor.receiveShadow = true;
                     mazeGroup.add(floor);
-                    if(r === dim-2 && c === dim-2) {
-                        const goal = new THREE.Mesh(new THREE.BoxGeometry(6,2,6), new THREE.MeshStandardMaterial({color: 0xfbbf24}));
+                    if(r===dim-2 && c===dim-2) {
+                        const goal = new THREE.Mesh(new THREE.BoxGeometry(7,2,7), new THREE.MeshStandardMaterial({color: 0xfbbf24}));
                         goal.position.set(px, 1, pz);
                         mazeGroup.add(goal);
                     }
@@ -136,25 +139,24 @@
         }
         scene.add(mazeGroup);
 
-        // 重新创建角色：确保它在场景中心且在地面上方
+        // 重置角色
         if(!player) {
             const pGroup = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.SphereGeometry(4, 32, 32), new THREE.MeshStandardMaterial({color: 0x2ecc71}));
-            body.position.y = 5; // 抬高，防止陷进地板
+            const body = new THREE.Mesh(new THREE.SphereGeometry(4, 24, 24), new THREE.MeshStandardMaterial({color: 0x2ecc71}));
+            body.position.y = 5;
             body.castShadow = true;
             pGroup.add(body);
-            // 加个小耳朵
-            const ear = new THREE.Mesh(new THREE.ConeGeometry(1, 4, 16), new THREE.MeshStandardMaterial({color: 0x27ae60}));
-            ear.position.set(-2, 9, 0); pGroup.add(ear.clone());
-            ear.position.set(2, 9, 0); pGroup.add(ear);
+            const ear = new THREE.Mesh(new THREE.BoxGeometry(1, 5, 1), new THREE.MeshStandardMaterial({color: 0x27ae60}));
+            ear.position.set(-1.5, 9, 0); pGroup.add(ear.clone());
+            ear.position.set(1.5, 9, 0); pGroup.add(ear);
             player = pGroup;
             scene.add(player);
         }
         state.r = 1; state.c = 1;
-        updatePlayerPos();
+        updatePlayer();
     }
 
-    function updatePlayerPos() {
+    function updatePlayer() {
         const dim = state.maze.length;
         player.position.x = state.c * step - (dim*step/2);
         player.position.z = state.r * step - (dim*step/2);
@@ -162,24 +164,20 @@
 
     function animate() {
         requestAnimationFrame(animate);
-        // 相机跟随：保持平滑，视角更开阔
-        camera.position.x += (player.position.x - camera.position.x) * 0.05;
-        camera.position.z += (player.position.z + 50 - camera.position.z) * 0.05;
-        camera.lookAt(player.position.x, 0, player.position.z);
+        if(player) {
+            camera.position.x += (player.position.x - camera.position.x) * 0.05;
+            camera.position.z += (player.position.z + 55 - camera.position.z) * 0.05;
+            camera.lookAt(player.position.x, 0, player.position.z);
+        }
         renderer.render(scene, camera);
     }
 
     window.move = (dir) => {
         let nr = state.r, nc = state.c;
-        // 修正逻辑映射：↑ 是减小 r (z轴负向)，↓ 是增加 r (z轴正向)
-        if(dir=='u') nr--; 
-        if(dir=='d') nr++; 
-        if(dir=='l') nc--; 
-        if(dir=='r') nc++;
-
+        if(dir=='u') nr--; if(dir=='d') nr++; if(dir=='l') nc--; if(dir=='r') nc++;
         if(state.maze[nr] && state.maze[nr][nc] === 0) {
             state.r = nr; state.c = nc;
-            updatePlayerPos();
+            updatePlayer();
             if(nr === state.maze.length-2 && nc === state.maze.length-2) {
                 state.lv++;
                 document.getElementById('lvD').innerText = state.lv;
@@ -188,7 +186,19 @@
         }
     };
 
-    window.onload = init;
+    window.launchGame = () => {
+        document.getElementById('startLayer').style.opacity = '0';
+        setTimeout(() => {
+            document.getElementById('startLayer').style.display = 'none';
+            init();
+            setInterval(() => {
+                state.time++;
+                const m = Math.floor(state.time/60).toString().padStart(2,'0');
+                const s = (state.time%60).toString().padStart(2,'0');
+                document.getElementById('tmD').innerText = `${m}:${s}`;
+            }, 1000);
+        }, 500);
+    };
 </script>
 </body>
 </html>
