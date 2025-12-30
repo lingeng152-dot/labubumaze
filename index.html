@@ -3,26 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>M.O.L 3D - Ultimate Forest</title>
+    <title>M.O.L 3D - Fixed & Locked</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         :root { --green: #2ecc71; --bg: #e8f8f5; }
-        body { margin: 0; background: var(--bg); overflow: hidden; font-family: sans-serif; }
+        /* 关键：禁用所有系统手势，防止滑动和缩放冲突 */
+        * { touch-action: none; -webkit-user-select: none; }
         
-        /* 顶部 HUD */
-        #ui { position: fixed; top: 15px; width: 90%; left: 5%; z-index: 100; pointer-events: none; }
-        .hud { display: flex; justify-content: space-around; padding: 12px; background: rgba(255,255,255,0.9); border-radius: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); border: 1px solid white; }
+        body { margin: 0; background: var(--bg); overflow: hidden; font-family: -apple-system, sans-serif; position: fixed; width: 100%; height: 100%; }
+        
+        /* 固定 UI 顶层 */
+        #ui { position: fixed; top: 15px; width: 90%; left: 5%; z-index: 1000; pointer-events: none; }
+        .hud { display: flex; justify-content: space-around; padding: 12px; background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); border-radius: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); border: 1px solid white; }
         .hud-val { color: var(--green); font-weight: 900; font-size: 1.1rem; display: block; text-align: center; }
         .hud-label { color: #888; font-size: 0.6rem; font-weight: bold; }
 
-        /* 操作按钮 */
-        #controls { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; z-index: 100; }
-        .btn { width: 65px; height: 65px; background: white; border-radius: 20px; border: none; font-size: 1.5rem; color: var(--green); box-shadow: 0 5px 0 #d1f2eb; pointer-events: auto; outline: none; -webkit-tap-highlight-color: transparent; }
-        .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #d1f2eb; }
+        /* 固定方向键 */
+        #controls { 
+            position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%); 
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; 
+            z-index: 1000; pointer-events: none;
+        }
+        .btn { 
+            width: 72px; height: 72px; background: white; border-radius: 24px; border: none; 
+            font-size: 1.8rem; color: var(--green); box-shadow: 0 6px 0 #d1f2eb; 
+            pointer-events: auto; display: flex; align-items: center; justify-content: center;
+            outline: none; -webkit-tap-highlight-color: transparent;
+        }
+        .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #d1f2eb; }
 
-        /* 欢迎界面 */
-        #startLayer { position: fixed; inset: 0; background: var(--bg); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.5s; }
-        .start-btn { background: var(--green); color: white; border: none; padding: 15px 50px; border-radius: 30px; font-weight: bold; font-size: 1.1rem; box-shadow: 0 8px 20px rgba(46,204,113,0.3); margin-top: 20px; }
+        /* 开始界面 */
+        #startLayer { position: fixed; inset: 0; background: var(--bg); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .start-btn { background: var(--green); color: white; border: none; padding: 16px 60px; border-radius: 30px; font-weight: bold; font-size: 1.2rem; }
     </style>
 </head>
 <body>
@@ -43,26 +55,29 @@
 
     <div id="startLayer">
         <h1 style="color:var(--green); font-size:3rem; margin:0;">M.O.L 3D</h1>
-        <p style="color:#888; letter-spacing:3px;">GREEN FOREST MAZE</p >
-        <button class="start-btn" onclick="launchGame()">ENTER GAME</button>
+        <p style="color:#888; letter-spacing:4px; font-size:0.8rem; margin-bottom:30px">JUNGLE ADVENTURE</p >
+        <button class="start-btn" onclick="launch()">GO!</button>
     </div>
 
 <script>
     let scene, camera, renderer, player, mazeGroup;
     let state = { r: 1, c: 1, lv: 1, maze: [], time: 0 };
-    const step = 10; 
+    const step = 10;
 
-    // 生成墙壁纹理
-    function createTexture() {
+    function createVineTexture() {
         const canvas = document.createElement('canvas');
         canvas.width = 128; canvas.height = 128;
         const ctx = canvas.getContext('2d');
         ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,128,128);
-        ctx.fillStyle = '#2ecc71';
-        for(let i=0; i<40; i++) {
-            ctx.beginPath();
-            ctx.ellipse(Math.random()*128, Math.random()*128, 6, 3, Math.random()*3, 0, 7);
-            ctx.fill();
+        ctx.strokeStyle = '#27ae60'; ctx.lineWidth = 1.5;
+        for(let i=0; i<12; i++) {
+            const x = Math.random() * 128;
+            ctx.beginPath(); ctx.moveTo(x, 0);
+            ctx.bezierCurveTo(x+15, 40, x-15, 80, x, 128); ctx.stroke();
+            ctx.fillStyle = '#2ecc71';
+            for(let j=0; j<4; j++) {
+                ctx.beginPath(); ctx.ellipse(x, 20+j*30, 4, 2, 0.4, 0, 7); ctx.fill();
+            }
         }
         return new THREE.CanvasTexture(canvas);
     }
@@ -70,20 +85,19 @@
     function init() {
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0xe8f8f5);
-        scene.fog = new THREE.Fog(0xe8f8f5, 20, 150);
+        scene.fog = new THREE.Fog(0xe8f8f5, 30, 160);
 
-        // 视角设置：更宽的视野
         camera = new THREE.PerspectiveCamera(65, window.innerWidth/window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 70, 60); 
+        camera.position.set(0, 80, 60); 
 
         renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio); // 保证高清
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
         document.body.appendChild(renderer.domElement);
 
         const sun = new THREE.DirectionalLight(0xffffff, 1);
-        sun.position.set(30, 60, 30);
-        sun.castShadow = true;
+        sun.position.set(30, 60, 30); sun.castShadow = true;
         scene.add(sun);
         scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
@@ -94,7 +108,6 @@
     function createMaze() {
         if(mazeGroup) scene.remove(mazeGroup);
         mazeGroup = new THREE.Group();
-        
         const dim = 11 + Math.min(state.lv, 6);
         state.maze = Array.from({length:dim},()=>Array(dim).fill(1));
         const walk = (r, c) => {
@@ -107,8 +120,8 @@
         };
         walk(1,1);
 
-        const tex = createTexture();
-        const wallMat = new THREE.MeshStandardMaterial({ map: tex });
+        const wallTex = createVineTexture();
+        const wallMat = new THREE.MeshStandardMaterial({ map: wallTex });
         const floorMat = new THREE.MeshStandardMaterial({ color: 0xa9dfbf });
         const wallGeo = new THREE.BoxGeometry(step, 16, step);
         const floorGeo = new THREE.PlaneGeometry(step, step);
@@ -120,8 +133,7 @@
                 if(state.maze[r][c] === 1) {
                     const wall = new THREE.Mesh(wallGeo, wallMat);
                     wall.position.set(px, 8, pz);
-                    wall.castShadow = true;
-                    wall.receiveShadow = true;
+                    wall.castShadow = true; wall.receiveShadow = true;
                     mazeGroup.add(wall);
                 } else {
                     const floor = new THREE.Mesh(floorGeo, floorMat);
@@ -130,25 +142,22 @@
                     floor.receiveShadow = true;
                     mazeGroup.add(floor);
                     if(r===dim-2 && c===dim-2) {
-                        const goal = new THREE.Mesh(new THREE.BoxGeometry(7,2,7), new THREE.MeshStandardMaterial({color: 0xfbbf24}));
-                        goal.position.set(px, 1, pz);
-                        mazeGroup.add(goal);
+                        const goal = new THREE.Mesh(new THREE.BoxGeometry(7,4,7), new THREE.MeshStandardMaterial({color: 0xfbbf24}));
+                        goal.position.set(px, 2, pz); mazeGroup.add(goal);
                     }
                 }
             }
         }
         scene.add(mazeGroup);
 
-        // 重置角色
         if(!player) {
             const pGroup = new THREE.Group();
             const body = new THREE.Mesh(new THREE.SphereGeometry(4, 24, 24), new THREE.MeshStandardMaterial({color: 0x2ecc71}));
-            body.position.y = 5;
-            body.castShadow = true;
+            body.position.y = 5; body.castShadow = true;
             pGroup.add(body);
-            const ear = new THREE.Mesh(new THREE.BoxGeometry(1, 5, 1), new THREE.MeshStandardMaterial({color: 0x27ae60}));
-            ear.position.set(-1.5, 9, 0); pGroup.add(ear.clone());
-            ear.position.set(1.5, 9, 0); pGroup.add(ear);
+            const ear = new THREE.Mesh(new THREE.BoxGeometry(1.5, 6, 1.5), new THREE.MeshStandardMaterial({color: 0x27ae60}));
+            ear.position.set(-2, 9, 0); pGroup.add(ear.clone());
+            ear.position.set(2, 9, 0); pGroup.add(ear);
             player = pGroup;
             scene.add(player);
         }
@@ -179,25 +188,21 @@
             state.r = nr; state.c = nc;
             updatePlayer();
             if(nr === state.maze.length-2 && nc === state.maze.length-2) {
-                state.lv++;
-                document.getElementById('lvD').innerText = state.lv;
+                state.lv++; document.getElementById('lvD').innerText = state.lv;
                 createMaze();
             }
         }
     };
 
-    window.launchGame = () => {
-        document.getElementById('startLayer').style.opacity = '0';
-        setTimeout(() => {
-            document.getElementById('startLayer').style.display = 'none';
-            init();
-            setInterval(() => {
-                state.time++;
-                const m = Math.floor(state.time/60).toString().padStart(2,'0');
-                const s = (state.time%60).toString().padStart(2,'0');
-                document.getElementById('tmD').innerText = `${m}:${s}`;
-            }, 1000);
-        }, 500);
+    window.launch = () => {
+        document.getElementById('startLayer').style.display = 'none';
+        init();
+        setInterval(() => {
+            state.time++;
+            const s = (state.time%60).toString().padStart(2,'0');
+            const m = Math.floor(state.time/60).toString().padStart(2,'0');
+            document.getElementById('tmD').innerText = `${m}:${s}`;
+        }, 1000);
     };
 </script>
 </body>
