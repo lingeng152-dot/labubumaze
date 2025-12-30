@@ -5,99 +5,51 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>M.O.L: Maze of Labubu</title>
     <style>
-        :root {
-            --pink: #ff477e;
-            --gold: #fbbf24;
-            --bg: #fff5f7;
-            --glass: rgba(255, 255, 255, 0.8);
-        }
-
-        body {
-            margin: 0; padding: 0;
-            background: var(--bg);
-            font-family: 'Arial Black', 'Segoe UI', sans-serif;
-            display: flex; flex-direction: column; align-items: center;
-            height: 100vh; overflow: hidden;
-        }
-
-        /* 顶部 HUD */
-        .hud {
-            width: 90%; margin-top: 15px; padding: 12px 20px;
-            background: var(--glass); backdrop-filter: blur(10px);
-            border-radius: 20px; display: flex; justify-content: space-between;
-            box-shadow: 0 8px 25px rgba(255,71,126,0.1); border: 2px solid white;
-            z-index: 10;
-        }
-        .hud-item { text-align: center; }
-        .hud-val { display: block; font-weight: 900; color: var(--pink); font-size: 1.2rem; }
-        .hud-label { font-size: 0.6rem; color: #94a3b8; }
-
-        /* Logo 区域 */
-        #game-view { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; }
+        :root { --pink: #ff477e; --bg: #f8f0ff; --glass: rgba(255, 255, 255, 0.9); }
+        body { margin: 0; padding: 0; background: var(--bg); font-family: 'Arial Black', sans-serif; display: flex; flex-direction: column; align-items: center; height: 100vh; overflow: hidden; }
         
-        canvas {
-            border: 8px solid white; border-radius: 30px;
-            background: white; box-shadow: 0 15px 45px rgba(0,0,0,0.08);
-            max-width: 90vw; max-height: 50vh;
-        }
+        .hud { width: 90%; margin-top: 10px; padding: 10px 15px; background: var(--glass); backdrop-filter: blur(10px); border-radius: 20px; display: flex; justify-content: space-around; box-shadow: 0 4px 15px rgba(0,0,0,0.05); z-index: 10; border: 1px solid #fff; }
+        .hud-item { text-align: center; }
+        .hud-val { display: block; font-weight: 900; color: var(--pink); font-size: 1rem; }
+        .hud-label { font-size: 0.6rem; color: #999; }
 
-        /* 覆盖层：角色选择 & Logo */
-        .overlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(12px); z-index: 100;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .menu-card {
-            background: white; padding: 30px; border-radius: 40px;
-            width: 85%; max-width: 380px; text-align: center;
-            border: 4px solid var(--pink); box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
+        #game-view { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; position: relative; }
+        canvas { border: 6px solid white; border-radius: 25px; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 95vw; }
 
-        .logo-text { font-size: 3.5rem; color: var(--pink); line-height: 1; margin: 0; letter-spacing: -3px; }
-        .logo-sub { font-size: 0.8rem; letter-spacing: 3px; color: #94a3b8; margin-bottom: 20px; }
+        .overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.7); backdrop-filter: blur(15px); z-index: 100; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
+        .menu-card { background: white; padding: 25px; border-radius: 35px; width: 85%; max-width: 350px; text-align: center; box-shadow: 0 15px 50px rgba(0,0,0,0.1); border: 2px solid #ff477e1a; }
+        
+        .logo-text { font-size: 3rem; color: var(--pink); line-height: 1; margin: 0; letter-spacing: -2px; }
+        .logo-sub { font-size: 0.7rem; letter-spacing: 2px; color: #bbb; margin-bottom: 20px; }
 
-        .char-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin: 20px 0; }
-        .char-item {
-            padding: 10px; border-radius: 20px; border: 3px solid #f1f5f9;
-            cursor: pointer; transition: 0.2s; position: relative; background: #fafafa;
-        }
-        .char-item.active { border-color: var(--pink); background: #fff1f2; transform: scale(1.05); }
-        .char-item.locked { opacity: 0.5; filter: grayscale(1); cursor: not-allowed; }
-        .lock-tag { position: absolute; top: 5px; right: 5px; background: #000; color: #fff; font-size: 9px; padding: 2px 6px; border-radius: 8px; }
+        .char-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 15px 0; }
+        .char-item { padding: 8px; border-radius: 15px; border: 2px solid #f0f0f0; cursor: pointer; transition: 0.2s; background: #fff; position: relative; }
+        .char-item.active { border-color: var(--pink); background: #fff1f5; transform: translateY(-3px); }
+        .char-item.locked { opacity: 0.4; filter: grayscale(1); }
+        .lock-tag { position: absolute; top: -5px; right: -5px; background: #000; color: #fff; font-size: 8px; padding: 2px 5px; border-radius: 5px; }
 
-        /* 摇杆 */
-        .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 30px; }
-        .joy-btn {
-            width: 65px; height: 65px; background: white; border-radius: 20px;
-            border: none; font-size: 1.5rem; color: var(--pink); font-weight: bold;
-            box-shadow: 0 6px 0 #eee; transition: 0.1s;
-        }
-        .joy-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #eee; }
+        .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 25px; }
+        .joy-btn { width: 55px; height: 55px; background: white; border-radius: 18px; border: none; font-size: 1.2rem; color: var(--pink); box-shadow: 0 4px 0 #eee; }
+        .joy-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #eee; }
 
-        .start-btn {
-            background: var(--pink); color: white; border: none; padding: 16px;
-            border-radius: 50px; width: 100%; font-weight: bold; font-size: 1.2rem;
-            box-shadow: 0 8px 20px rgba(255,71,126,0.3); cursor: pointer;
-        }
+        .start-btn { background: var(--pink); color: white; border: none; padding: 15px; border-radius: 50px; width: 100%; font-weight: bold; font-size: 1.1rem; cursor: pointer; box-shadow: 0 5px 15px rgba(255,71,126,0.3); }
     </style>
 </head>
 <body>
 
     <div class="hud">
-        <div class="hud-item"><span class="hud-label">LV.</span><span id="lvD" class="hud-val">1</span></div>
+        <div class="hud-item"><span class="hud-label">LEVEL</span><span id="lvD" class="hud-val">1</span></div>
         <div class="hud-item"><span class="hud-label">TIME</span><span id="tmD" class="hud-val">00:00</span></div>
-        <div class="hud-item"><span class="hud-label">HERO</span><span id="hrD" class="hud-val">原色</span></div>
+        <div class="hud-item"><span class="hud-label">HERO</span><span id="hrD" class="hud-val">-</span></div>
     </div>
 
-    <div id="game-view">
-        <canvas id="mainCvs"></canvas>
-    </div>
+    <div id="game-view"><canvas id="mainCvs"></canvas></div>
 
     <div class="controls">
-        <div></div><button class="joy-btn" onmousedown="handleMove('u')">↑</button><div></div>
-        <button class="joy-btn" onmousedown="handleMove('l')">←</button>
-        <button class="joy-btn" onmousedown="handleMove('d')">↓</button>
-        <button class="joy-btn" onmousedown="handleMove('r')">→</button>
+        <div></div><button class="joy-btn" onmousedown="handleMove('u')" ontouchstart="handleMove('u')">↑</button><div></div>
+        <button class="joy-btn" onmousedown="handleMove('l')" ontouchstart="handleMove('l')">←</button>
+        <button class="joy-btn" onmousedown="handleMove('d')" ontouchstart="handleMove('d')">↓</button>
+        <button class="joy-btn" onmousedown="handleMove('r')" ontouchstart="handleMove('r')">→</button>
     </div>
 
     <div id="menuOverlay" class="overlay">
@@ -105,7 +57,7 @@
             <h1 class="logo-text">M.O.L</h1>
             <div class="logo-sub">MAZE OF LABUBU</div>
             <div class="char-grid" id="charGrid"></div>
-            <button class="start-btn" onclick="goGame()">GO ADVENTURE!</button>
+            <button class="start-btn" id="startBtn" onclick="goGame()">GO ADVENTURE!</button>
         </div>
     </div>
 
@@ -113,5 +65,134 @@
     const cvs = document.getElementById('mainCvs');
     const ctx = cvs.getContext('2d');
     
-    let state = {
-        level
+    let state = { level: 1, seconds: 0, char: 'pink', unlocked: false };
+    const roles = {
+        pink:    { color: "#ff92ac", name: "心动粉", ear: 1.5, hide: false },
+        green:   { color: "#a8e6cf", name: "平静绿", ear: 1.5, hide: false },
+        blue:    { color: "#a2d2ff", name: "希望蓝", ear: 1.5, hide: false },
+        orange:  { color: "#ffd8a8", name: "欢乐橙", ear: 1.5, hide: false },
+        purple:  { color: "#dcd6f7", name: "幸运紫", ear: 1.5, hide: false },
+        zimomo:  { color: "#444444", name: "本我(隐藏)", ear: 1.9, hide: true }
+    };
+
+    let maze, player, rows, size, gameStarted = false;
+
+    function init() {
+        try {
+            const data = localStorage.getItem('mol_save_v2');
+            if (data) state = JSON.parse(data);
+        } catch(e) {}
+        state.unlocked = state.level >= 50;
+        renderMenu();
+    }
+
+    function drawLabubu(x, y, s, config) {
+        const cx = (y + 0.5) * s; const cy = (x + 0.5) * s;
+        ctx.save(); ctx.translate(cx, cy);
+        ctx.fillStyle = config.color;
+        [-1, 1].forEach(d => {
+            ctx.beginPath(); ctx.moveTo(d * s/4, 0);
+            ctx.lineTo(d * s/3, -s * config.ear/1.5);
+            ctx.lineTo(0, -s/4); ctx.fill();
+        });
+        ctx.beginPath(); ctx.arc(0, 0, s/2.6, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "white";
+        for(let i=-2; i<=2; i++) {
+            ctx.beginPath(); ctx.moveTo(i * s/10, s/8);
+            ctx.lineTo(i * s/10 + s/20, s/3.2);
+            ctx.lineTo(i * s/10 + s/10, s/8); ctx.fill();
+        }
+        ctx.fillStyle = "#111";
+        ctx.beginPath(); ctx.arc(-s/8, -s/10, s/18, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(s/8, -s/10, s/18, 0, 7); ctx.fill();
+        ctx.restore();
+    }
+
+    function setupMaze() {
+        let b = 9 + Math.floor(state.level * 0.7);
+        if(b > 51) b = 51;
+        rows = b % 2 === 0 ? b + 1 : b;
+        const dS = Math.min(window.innerWidth * 0.9, 400);
+        cvs.width = cvs.height = dS;
+        size = dS / rows;
+        maze = Array.from({length:rows},()=>Array(rows).fill(1));
+        const walk = (x, y) => {
+            maze[x][y] = 0;
+            [[0,2],[0,-2],[2,0],[-2,0]].sort(()=>Math.random()-0.5).forEach(([dx,dy])=>{
+                if(x+dx>0 && x+dx<rows-1 && y+dy>0 && y+dy<rows-1 && maze[x+dx][y+dy]==1){
+                    maze[x+dx/2][y+dy/2]=0; walk(x+dx, y+dy);
+                }
+            });
+        };
+        walk(1,1); player = {x:1, y:1};
+        render();
+    }
+
+    function render() {
+        ctx.clearRect(0,0,cvs.width,cvs.height);
+        for(let x=0;x<rows;x++){
+            for(let y=0;y<rows;y++){
+                if(maze[x][y]==1){ ctx.fillStyle="#fff0f5"; ctx.fillRect(y*size, x*size, size, size); }
+                if(x==rows-2&&y==rows-2){ ctx.fillStyle="#fbbf24"; ctx.fillRect(y*size+2,x*size+2,size-4,size-4); }
+            }
+        }
+        drawLabubu(player.x, player.y, size, roles[state.char]);
+    }
+
+    window.handleMove = function(d) {
+        if(!gameStarted) return;
+        let nx=player.x, ny=player.y;
+        if(d=='u')nx--; if(d=='d')nx++; if(d=='l')ny--; if(d=='r')ny++;
+        if(maze[nx] && maze[nx][ny]==0){
+            player.x=nx; player.y=ny; render();
+            if(nx==rows-2 && ny==rows-2) {
+                state.level++; 
+                localStorage.setItem('mol_save_v2', JSON.stringify(state));
+                document.getElementById('lvD').innerText = state.level;
+                setupMaze();
+            }
+        }
+    }
+
+    function renderMenu() {
+        const grid = document.getElementById('charGrid');
+        grid.innerHTML = '';
+        Object.keys(roles).forEach(k => {
+            const r = roles[k];
+            const locked = r.hide && !state.unlocked;
+            const el = document.createElement('div');
+            el.className = `char-item ${state.char==k?'active':''} ${locked?'locked':''}`;
+            el.innerHTML = `<div style="font-size:1.2rem">${locked?'🔒':'😈'}</div><div style="font-size:0.5rem;font-weight:bold">${r.name}</div>${locked?'<span class="lock-tag">L50</span>':''}`;
+            if(!locked) el.onclick = () => { state.char=k; renderMenu(); };
+            grid.appendChild(el);
+        });
+    }
+
+    window.goGame = function() {
+        document.getElementById('menuOverlay').style.opacity = '0';
+        setTimeout(() => {
+            document.getElementById('menuOverlay').style.display = 'none';
+            document.getElementById('hrD').innerText = roles[state.char].name;
+            gameStarted = true;
+            setupMaze();
+            setInterval(() => {
+                state.seconds++;
+                const m = Math.floor(state.seconds/60).toString().padStart(2,'0');
+                const s = (state.seconds%60).toString().padStart(2,'0');
+                document.getElementById('tmD').innerText = `${m}:${s}`;
+            }, 1000);
+        }, 300);
+    }
+
+    window.onkeydown = (e) => {
+        const k = e.key.toLowerCase();
+        if(k.includes('up')||k=='w') handleMove('u');
+        if(k.includes('down')||k=='s') handleMove('d');
+        if(k.includes('left')||k=='a') handleMove('l');
+        if(k.includes('right')||k=='d') handleMove('r');
+    };
+
+    init();
+</script>
+</body>
+</html>
