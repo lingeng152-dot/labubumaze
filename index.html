@@ -3,39 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>迷宫守护者：高亮记忆版</title>
+    <title>Maze Guardian 100</title>
     <style>
-        :root { --accent: #00ff88; --bg: #050508; }
+        :root { --accent: #00ff88; --bg: #050508; --panel: rgba(255, 255, 255, 0.05); }
         * { touch-action: none; -webkit-user-select: none; box-sizing: border-box; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); overflow: hidden; font-family: 'Segoe UI', sans-serif; }
-        canvas { display: block; width: 100vw; height: 100vh; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); overflow: hidden; font-family: 'Inter', -apple-system, sans-serif; }
+        canvas { display: block; filter: contrast(1.1); }
         
-        #ui { position: absolute; top: 15px; width: 90%; left: 5%; z-index: 100; pointer-events: none; display: flex; flex-direction: column; gap: 10px; }
-        .hud-row { display: flex; justify-content: space-between; color: var(--accent); }
-        .hud-box { background: rgba(0, 40, 20, 0.7); padding: 8px 15px; border-radius: 10px; border: 1px solid var(--accent); backdrop-filter: blur(5px); }
-        .val { font-weight: 900; font-size: 1.2rem; }
+        #ui { position: absolute; top: 20px; width: 92%; left: 4%; z-index: 100; pointer-events: none; }
+        .hud-top { display: flex; justify-content: space-between; align-items: center; }
         
-        /* 进度条 */
-        .progress-bar-bg { width: 100%; height: 6px; background: #222; border-radius: 3px; overflow: hidden; border: 1px solid rgba(0, 255, 136, 0.2); }
-        #progress-fill { width: 1%; height: 100%; background: var(--accent); box-shadow: 0 0 10px var(--accent); transition: width 0.4s; }
+        .stat-card { background: var(--panel); backdrop-filter: blur(10px); padding: 10px 18px; border-radius: 16px; border: 1px solid rgba(0, 255, 136, 0.2); color: #fff; box-shadow: 0 4px 24px rgba(0,0,0,0.5); }
+        .label { font-size: 10px; color: var(--accent); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 2px; }
+        .val { font-weight: 800; font-size: 1.2rem; font-variant-numeric: tabular-nums; }
 
-        #controls { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; z-index: 100; }
-        .btn { width: 70px; height: 70px; background: rgba(0, 255, 136, 0.1); border: 2px solid var(--accent); border-radius: 15px; color: var(--accent); font-size: 1.5rem; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
-        .btn:active { background: var(--accent); color: #000; scale: 0.9; }
+        .progress-wrapper { width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 10px; margin-top: 12px; overflow: hidden; }
+        #progress-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #00ff88, #00d2ff); box-shadow: 0 0 10px var(--accent); transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+        #controls { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; z-index: 100; }
+        .btn { width: 68px; height: 68px; background: var(--panel); border: 1px solid rgba(255,255,255,0.1); border-radius: 50%; color: #fff; font-size: 1.4rem; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px); transition: 0.2s; }
+        .btn:active { background: var(--accent); color: #000; transform: scale(0.9) translateY(4px); box-shadow: 0 0 20px var(--accent); }
+        
+        #msg { position: fixed; top: 40%; left: 50%; transform: translate(-50%, -50%); color: var(--accent); font-weight: 800; text-align: center; display: none; text-shadow: 0 0 20px var(--accent); pointer-events: none; font-size: 1.5rem; }
     </style>
 </head>
 <body>
 
     <div id="ui">
-        <div class="hud-row">
-            <div class="hud-box">PROGRESS: <span class="val" id="lvRatio">1 / 100</span></div>
-            <div class="hud-box">ENERGY: <span class="val" id="engD">100</span>%</div>
+        <div class="hud-top">
+            <div class="stat-card">
+                <div class="label">Progress</div>
+                <div class="val"><span id="lvD">1</span><span style="opacity: 0.4; font-size: 0.8rem;"> / 100</span></div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Energy</div>
+                <div class="val" id="engD">100</div>
+            </div>
         </div>
-        <div class="progress-bar-bg">
+        <div class="progress-wrapper">
             <div id="progress-fill"></div>
         </div>
     </div>
 
+    <div id="msg">LEVEL CLEARED</div>
     <canvas id="gameCanvas"></canvas>
 
     <div id="controls">
@@ -53,19 +63,12 @@
     let state = {
         lv: 1, energy: 100, active: true,
         r: 0, c: 0, er: 0, ec: 0,
-        maze: [], dim: 15, gridSize: 0,
-        anim: 0
+        maze: [], dim: 11, gridSize: 0,
+        anim: 0, charPos: {x: 0, y: 0}
     };
-
-    function updateUI() {
-        document.getElementById('lvRatio').innerText = `${state.lv} / ${MAX_LV}`;
-        document.getElementById('engD').innerText = state.energy;
-        document.getElementById('progress-fill').style.width = Math.min(100, (state.lv / MAX_LV) * 100) + '%';
-    }
 
     function init() {
         resize();
-        // 加载历史进度
         const saved = localStorage.getItem('maze_hero_lv');
         if (saved) state.lv = parseInt(saved);
         
@@ -75,18 +78,19 @@
         setInterval(() => {
             if(!state.active) return;
             state.energy = Math.max(0, state.energy - 1);
-            updateUI();
+            document.getElementById('engD').innerText = state.energy;
             if(state.energy <= 0) {
-                state.energy = 100;
+                state.energy = 50;
                 newLevel();
             }
-        }, 1000);
+        }, 1200);
     }
 
     function newLevel() {
         localStorage.setItem('maze_hero_lv', state.lv);
-        updateUI();
-        
+        document.getElementById('lvD').innerText = state.lv;
+        document.getElementById('progress-fill').style.width = (state.lv / MAX_LV * 100) + '%';
+
         state.dim = Math.min(35, 11 + Math.floor(state.lv / 2) * 2);
         state.maze = Array.from({length: state.dim}, () => Array(state.dim).fill(1));
         
@@ -107,12 +111,18 @@
         
         let start = paths[Math.floor(Math.random() * paths.length)];
         state.r = start.r; state.c = start.c;
+        // 初始位置同步，防止开局相机猛拉
+        state.charPos.x = start.c; state.charPos.y = start.r;
+
         paths.sort((a,b) => Math.hypot(b.r-state.r, b.c-state.c) - Math.hypot(a.r-state.r, a.c-state.c));
         state.er = paths[0].r; state.ec = paths[0].c;
     }
 
     function animate() {
-        state.anim += 0.05;
+        state.anim += 0.04;
+        state.charPos.x += (state.c - state.charPos.x) * 0.15;
+        state.charPos.y += (state.r - state.charPos.y) * 0.15;
+        
         draw();
         requestAnimationFrame(animate);
     }
@@ -123,10 +133,10 @@
 
         const cx = canvas.width / 2;
         const cy = canvas.height / 2;
-        state.gridSize = Math.min(canvas.width, canvas.height) / 7;
+        state.gridSize = Math.min(canvas.width, canvas.height) / 7.5;
 
-        const offsetX = cx - state.c * state.gridSize - state.gridSize/2;
-        const offsetY = cy - state.r * state.gridSize - state.gridSize/2;
+        const offsetX = cx - state.charPos.x * state.gridSize - state.gridSize/2;
+        const offsetY = cy - state.charPos.y * state.gridSize - state.gridSize/2;
 
         for(let r=0; r<state.dim; r++) {
             for(let c=0; c<state.dim; c++) {
@@ -135,39 +145,46 @@
                 if(x < -state.gridSize || x > canvas.width || y < -state.gridSize || y > canvas.height) continue;
 
                 if(state.maze[r][c] === 1) {
-                    // 回退到清晰的墙体设计
-                    ctx.fillStyle = '#1a1a25';
-                    ctx.fillRect(x, y, state.gridSize-2, state.gridSize-2);
-                    ctx.strokeStyle = 'rgba(0, 255, 136, 0.2)'; // 增强可见度的边框
-                    ctx.strokeRect(x, y, state.gridSize-2, state.gridSize-2);
+                    ctx.fillStyle = '#11111a';
+                    ctx.beginPath();
+                    if(ctx.roundRect) ctx.roundRect(x+2, y+2, state.gridSize-4, state.gridSize-4, 8);
+                    else ctx.rect(x+2, y+2, state.gridSize-4, state.gridSize-4);
+                    ctx.fill();
+                    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+                    ctx.stroke();
                 } else if(r === state.er && c === state.ec) {
                     ctx.save();
                     ctx.translate(x + state.gridSize/2, y + state.gridSize/2);
                     ctx.rotate(state.anim);
-                    ctx.strokeStyle = '#00ff88';
                     ctx.shadowBlur = 15;
                     ctx.shadowColor = '#00ff88';
+                    ctx.strokeStyle = '#00ff88';
+                    ctx.lineWidth = 3;
                     ctx.strokeRect(-state.gridSize/4, -state.gridSize/4, state.gridSize/2, state.gridSize/2);
                     ctx.restore();
                 }
             }
         }
 
-        // 守护灵
         ctx.save();
-        const breath = Math.sin(state.anim) * 5;
-        ctx.shadowBlur = 20 + breath;
-        ctx.shadowColor = '#00ff88';
+        const floatY = Math.sin(state.anim * 2) * 4;
+        ctx.translate(cx, cy + floatY);
+        ctx.shadowBlur = 30;
+        ctx.shadowColor = 'rgba(0, 255, 136, 0.4)';
         ctx.fillStyle = '#fff';
         ctx.beginPath();
-        ctx.arc(cx, cy, (state.gridSize/3.2), 0, Math.PI*2);
+        ctx.arc(0, 0, state.gridSize/3.5, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(-6, -2, 3, 0, Math.PI*2);
+        ctx.arc(6, -2, 3, 0, Math.PI*2);
         ctx.fill();
         ctx.restore();
 
-        // 视角遮罩
-        const grd = ctx.createRadialGradient(cx, cy, state.gridSize * 0.8, cx, cy, state.gridSize * 4);
+        const grd = ctx.createRadialGradient(cx, cy, state.gridSize * 1.2, cx, cy, state.gridSize * 4.5);
         grd.addColorStop(0, 'rgba(0,0,0,0)');
-        grd.addColorStop(1, 'rgba(5, 5, 10, 0.9)');
+        grd.addColorStop(1, 'rgba(5, 5, 8, 0.92)');
         ctx.fillStyle = grd;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
@@ -179,7 +196,9 @@
             state.r = nr; state.c = nc;
             if(nr === state.er && nc === state.ec) {
                 state.lv++; state.energy = Math.min(100, state.energy + 40);
-                newLevel();
+                const msg = document.getElementById('msg');
+                msg.style.display = 'block';
+                setTimeout(() => { msg.style.display = 'none'; newLevel(); }, 800);
             }
         }
     };
