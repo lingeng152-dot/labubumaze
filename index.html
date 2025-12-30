@@ -3,123 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>迷宫守护者：深渊试炼</title>
+    <title>迷宫守护者：混沌深渊</title>
     <script src="https://cdn.staticfile.org/three.js/r128/three.min.js"></script>
     <style>
-        :root { --accent: #ff3e3e; --stone: #1a1a1a; --bg: #000000; }
+        :root { --accent: #00ff88; --stone: #1a1a1a; --bg: #000000; }
         * { touch-action: none; -webkit-user-select: none; box-sizing: border-box; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); overflow: hidden; font-family: 'Courier New', monospace; }
         
         #ui { position: absolute; top: 15px; width: 94%; left: 3%; z-index: 100; pointer-events: none; }
-        .hud { background: rgba(255,0,0,0.1); backdrop-filter: blur(10px); border-radius: 8px; padding: 10px; border: 1px solid var(--accent); display: flex; align-items: center; color: var(--accent); }
-        .info { flex: 1; display: flex; justify-content: space-around; font-weight: bold; }
-        .val { font-size: 1.2rem; text-shadow: 0 0 10px var(--accent); }
+        .hud { background: rgba(0,255,136,0.05); backdrop-filter: blur(10px); border-radius: 8px; padding: 12px; border: 1px solid var(--accent); display: flex; align-items: center; color: var(--accent); justify-content: space-around; }
+        .val { font-size: 1.2rem; font-weight: 900; text-shadow: 0 0 10px var(--accent); }
 
         #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; z-index: 100; }
-        .btn { width: 70px; height: 70px; background: rgba(255,255,255,0.05); border: 1px solid var(--accent); border-radius: 10px; color: var(--accent); font-size: 1.5rem; display: flex; align-items: center; justify-content: center; }
-        .btn:active { background: var(--accent); color: white; }
+        .btn { width: 70px; height: 70px; background: rgba(255,255,255,0.02); border: 1px solid var(--accent); border-radius: 50%; color: var(--accent); font-size: 1.5rem; display: flex; align-items: center; justify-content: center; }
+        .btn:active { background: var(--accent); color: black; box-shadow: 0 0 20px var(--accent); }
         
-        #overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; color: var(--accent); }
+        #msg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--accent); font-size: 2rem; display: none; z-index: 200; text-align: center; }
     </style>
 </head>
 <body>
 
     <div id="ui">
         <div class="hud">
-            <div class="info">
-                <div class="item">DEPTH: <span class="val" id="curLv">1</span></div>
-                <div class="item">CORE: <span class="val" id="timer">60</span>s</div>
-            </div>
+            <div>FLOOR <span class="val" id="curLv">1</span></div>
+            <div>ENERGY <span class="val" id="timer">100</span>%</div>
         </div>
     </div>
 
-    <div id="overlay">
-        <h1>能量耗尽</h1>
-        <button onclick="location.reload()" style="padding:10px 30px; border:1px solid var(--accent); background:none; color:var(--accent); cursor:pointer;">重载核心</button>
-    </div>
+    <div id="msg">核心重启...</div>
 
     <div id="controls">
-        <div></div><button class="btn" onpointerdown="move('u')">W</button><div></div>
-        <button class="btn" onpointerdown="move('l')">A</button>
-        <button class="btn" onpointerdown="move('d')">S</button>
-        <button class="btn" onpointerdown="move('r')">D</button>
+        <div></div><button class="btn" onpointerdown="move('u')">▲</button><div></div>
+        <button class="btn" onpointerdown="move('l')">◀</button>
+        <button class="btn" onpointerdown="move('d')">▼</button>
+        <button class="btn" onpointerdown="move('r')">▶</button>
     </div>
 
 <script>
-    let scene, camera, renderer, hero, mazeGroup, portal, traps = [];
-    let state = { r: 1, c: 1, er: 0, ec: 0, lv: 1, maze: [], timeLeft: 60, active: true };
+    let scene, camera, renderer, hero, mazeGroup, portal, heroLight;
+    let state = { r: 0, c: 0, er: 0, ec: 0, lv: 1, maze: [], energy: 100, active: true };
     const step = 10, wallH = 22;
 
     function init() {
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
-        // 【难度提升：极浓的迷雾】视野距离缩减到 45
-        scene.fog = new THREE.Fog(0x000000, 5, 45);
+        // 极近迷雾：增加压迫感
+        scene.fog = new THREE.Fog(0x000000, 5, 50);
 
-        camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 1, 1000);
+        camera = new THREE.PerspectiveCamera(65, window.innerWidth/window.innerHeight, 1, 1000);
         renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // 只有环境微光
-        scene.add(new THREE.AmbientLight(0xffffff, 0.05));
-        
-        // 【难度提升：有限的手电筒光源】
-        const spotLight = new THREE.PointLight(0xff3e3e, 2, 60);
-        spotLight.position.set(0, 10, 0);
-        heroLight = spotLight;
+        scene.add(new THREE.AmbientLight(0xffffff, 0.02));
+        heroLight = new THREE.PointLight(0x00ff88, 2, 60);
         scene.add(heroLight);
 
         createMaze();
         animate();
 
-        // 计时器逻辑
         setInterval(() => {
             if(!state.active) return;
-            state.timeLeft--;
-            document.getElementById('timer').innerText = state.timeLeft;
-            if(state.timeLeft <= 0) {
-                state.active = false;
-                document.getElementById('overlay').style.display = 'flex';
-            }
-        }, 1000);
-    }
-
-    function createHero() {
-        const group = new THREE.Group();
-        const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xff0000, emissiveIntensity: 0.5 });
-        const body = new THREE.Mesh(new THREE.CylinderGeometry(3, 4, 18, 6), mat);
-        body.position.y = 11;
-        group.add(body);
-        return group;
+            state.energy -= 1;
+            document.getElementById('timer').innerText = state.energy;
+            if(state.energy <= 0) gameOver();
+        }, 800);
     }
 
     function createMaze() {
         if(mazeGroup) scene.remove(mazeGroup);
-        traps = [];
         mazeGroup = new THREE.Group();
         
-        // 【难度提升：迷宫规模随等级大幅增长】
-        const dim = Math.min(61, 15 + state.lv * 2); 
+        // 动态难度：迷宫尺寸
+        const dim = Math.min(51, 13 + state.lv * 2); 
         state.maze = Array.from({length:dim}, () => Array(dim).fill(1));
         
         const walk = (r, c) => {
             state.maze[r][c] = 0;
             [[0,2],[0,-2],[2,0],[-2,0]].sort(()=>Math.random()-0.5).forEach(([dr,dc]) => {
-                if(r+dr>0 && r+dr<dim-1 && c+dc>0 && c+dc<dim-1 && state.maze[r+dr][c+dc] == 1) {
-                    state.maze[r+dr/2][c+dc/2] = 0; walk(r+dr, c+dc);
+                let nr = r+dr, nc = c+dc;
+                if(nr>0 && nr<dim-1 && nc>0 && nc<dim-1 && state.maze[nr][nc] == 1) {
+                    state.maze[r+dr/2][c+dc/2] = 0; walk(nr, nc);
                 }
             });
         };
+        // 算法生成：从随机位置开始挖掘
         walk(1, 1);
 
-        // 随机终点
+        // 收集所有可行走路径点
         let paths = [];
-        for(let r=0; r<dim; r++) for(let c=0; c<dim; c++) if(state.maze[r][c]==0) paths.push({r,c});
-        let end = paths.filter(p => (p.r + p.c) > dim * 1.5).pop();
-        state.er = end.r; state.ec = end.c;
+        for(let r=1; r<dim-1; r++) for(let c=1; c<dim-1; c++) if(state.maze[r][c] === 0) paths.push({r,c});
 
-        const wallMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+        // --- 核心更新：起点与终点双重随机 ---
+        // 1. 随机选取起点
+        let startIdx = Math.floor(Math.random() * paths.length);
+        let startPos = paths[startIdx];
+        state.r = startPos.r; state.c = startPos.c;
+
+        // 2. 寻找与起点直线距离最远的点作为终点候选（确保难度）
+        paths.sort((a, b) => {
+            let distA = Math.hypot(a.r - state.r, a.c - state.c);
+            let distB = Math.hypot(b.r - state.r, b.c - state.c);
+            return distB - distA;
+        });
+        // 取前5个最远点中的随机一个，避免位置过于单一
+        let endPos = paths[Math.floor(Math.random() * 5)];
+        state.er = endPos.r; state.ec = endPos.c;
+
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 1 });
         const wallGeo = new THREE.BoxGeometry(step, wallH, step);
 
         for(let r=0; r<dim; r++) {
@@ -130,49 +122,54 @@
                     wall.position.set(px, wallH/2, pz);
                     mazeGroup.add(wall);
                 } else if(r == state.er && c == state.ec) {
-                    // 终点门 - 只有靠近才会发现
-                    portal = new THREE.Mesh(new THREE.TorusKnotGeometry(4, 1, 64, 8), new THREE.MeshBasicMaterial({color: 0xff3e3e}));
-                    portal.position.set(px, 10, pz);
-                    mazeGroup.add(portal);
-                } else if(Math.random() < 0.05 && (r+c > 10)) {
-                    // 【难度提升：随机地刺陷阱】
-                    const trap = new THREE.Mesh(new THREE.ConeGeometry(3, 8, 4), new THREE.MeshStandardMaterial({color: 0x444444}));
-                    trap.position.set(px, -4, pz); // 初始在地底
-                    trap.gridPos = {r, c};
-                    traps.push(trap);
-                    mazeGroup.add(trap);
+                    // 终点门
+                    const g = new THREE.Group();
+                    const ring = new THREE.Mesh(new THREE.TorusGeometry(4, 0.6, 16, 32), new THREE.MeshBasicMaterial({color: 0x00ff88}));
+                    ring.position.y = 8;
+                    portal = ring;
+                    g.add(ring);
+                    g.position.set(px, 0, pz);
+                    mazeGroup.add(g);
                 }
             }
         }
+        
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(dim*step, dim*step), new THREE.MeshStandardMaterial({color:0x050505}));
+        floor.rotation.x = -Math.PI/2;
+        mazeGroup.add(floor);
         scene.add(mazeGroup);
-        if(!hero) { hero = createHero(); scene.add(hero); }
-        state.r = 1; state.c = 1;
-        state.timeLeft = 60 + state.lv * 10; // 每关时间奖励
-        hero.position.set(1*step - (dim*step/2), 0, 1*step - (dim*step/2));
+
+        if(!hero) {
+            hero = new THREE.Group();
+            // 守护灵角色
+            const body = new THREE.Mesh(new THREE.SphereGeometry(4, 32, 32), new THREE.MeshStandardMaterial({color:0xffffff, emissive:0x00ff88, emissiveIntensity:0.5}));
+            body.position.y = 10;
+            const eyes = new THREE.Group();
+            [-1.5, 1.5].forEach(x => {
+                const eye = new THREE.Mesh(new THREE.SphereGeometry(0.6, 8, 8), new THREE.MeshBasicMaterial({color:0x000000}));
+                eye.position.set(x, 11, 3.5);
+                eyes.add(eye);
+            });
+            hero.add(body, eyes);
+            scene.add(hero);
+        }
+        updateHeroPos();
+    }
+
+    function updateHeroPos() {
+        const dim = state.maze.length;
+        hero.position.x = state.c*step - (dim*step/2);
+        hero.position.z = state.r*step - (dim*step/2);
     }
 
     function animate() {
         requestAnimationFrame(animate);
         if(!state.active) return;
-
         if(hero) {
-            const targetCam = new THREE.Vector3(hero.position.x, 80, hero.position.z + 40);
-            camera.position.lerp(targetCam, 0.05);
-            camera.lookAt(hero.position.x, 0, hero.position.z);
+            camera.position.lerp(new THREE.Vector3(hero.position.x, 70, hero.position.z + 45), 0.08);
+            camera.lookAt(hero.position.x, 5, hero.position.z);
             heroLight.position.copy(hero.position).y = 15;
-            
-            // 陷阱逻辑：随时间起伏
-            const time = Date.now() * 0.005;
-            traps.forEach(t => {
-                t.position.y = -4 + Math.max(0, Math.sin(time + t.position.x) * 12);
-                // 碰撞检测：如果玩家踩到升起的地刺
-                if(t.position.y > 2 && state.r == t.gridPos.r && state.c == t.gridPos.c) {
-                    state.timeLeft -= 0.5; // 踩中陷阱扣除时间
-                    heroLight.color.setHex(0xffffff); 
-                } else {
-                    heroLight.color.setHex(0xff3e3e);
-                }
-            });
+            hero.position.y = Math.sin(Date.now() * 0.004) * 1.5;
         }
         if(portal) portal.rotation.y += 0.05;
         renderer.render(scene, camera);
@@ -185,16 +182,27 @@
         
         if(state.maze[nr] && state.maze[nr][nc] == 0) {
             state.r = nr; state.c = nc;
-            const dim = state.maze.length;
-            hero.position.x = nc*step - (dim*step/2);
-            hero.position.z = nr*step - (dim*step/2);
+            updateHeroPos();
             if(nr == state.er && nc == state.ec) {
                 state.lv++;
+                state.energy = Math.min(100, state.energy + 30);
                 document.getElementById('curLv').innerText = state.lv;
-                createMaze();
+                document.getElementById('msg').innerText = "进入第 " + state.lv + " 层";
+                document.getElementById('msg').style.display = 'block';
+                setTimeout(() => { 
+                    document.getElementById('msg').style.display = 'none';
+                    createMaze(); 
+                }, 1000);
             }
         }
     };
+
+    function gameOver() {
+        state.active = false;
+        document.getElementById('msg').innerText = "能量耗尽\n你在第 " + state.lv + " 层迷失了";
+        document.getElementById('msg').style.display = 'block';
+        setTimeout(() => location.reload(), 3000);
+    }
 
     window.onresize = () => {
         camera.aspect = window.innerWidth / window.innerHeight;
