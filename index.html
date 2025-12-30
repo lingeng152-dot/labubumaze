@@ -3,29 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>迷宫守护者：百层英雄试炼</title>
+    <title>迷宫守护者：守护灵传说</title>
     <script src="https://cdn.staticfile.org/three.js/r128/three.min.js"></script>
     <style>
-        :root { --accent: #e67e22; --stone: #2d3436; --bg: #121212; }
+        :root { --accent: #00d2ff; --stone: #2d3436; --bg: #050508; }
         * { touch-action: none; -webkit-user-select: none; box-sizing: border-box; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); overflow: hidden; font-family: 'Arial', sans-serif; }
         
         #ui { position: absolute; top: 15px; width: 94%; left: 3%; z-index: 100; pointer-events: none; }
-        .hud { background: rgba(0,0,0,0.85); border-radius: 12px; padding: 12px; border: 2px solid var(--accent); display: flex; align-items: center; color: white; }
-        .avatar { width: 44px; height: 44px; border-radius: 8px; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 24px; margin-right: 12px; }
+        .hud { background: rgba(0,0,0,0.6); backdrop-filter: blur(15px); border-radius: 20px; padding: 12px 20px; border: 1px solid rgba(0, 210, 255, 0.3); display: flex; align-items: center; color: white; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(45deg, #00d2ff, #3a7bd5); margin-right: 15px; box-shadow: 0 0 15px var(--accent); }
         .info { flex: 1; display: flex; justify-content: space-around; }
-        .val { font-weight: 900; font-size: 1.2rem; color: var(--accent); }
+        .val { font-weight: 900; font-size: 1.2rem; color: var(--accent); text-shadow: 0 0 10px var(--accent); }
 
-        #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; z-index: 100; }
-        .btn { width: 75px; height: 75px; background: rgba(255,255,255,0.1); border-radius: 20px; border: 2px solid rgba(255,255,255,0.2); font-size: 1.8rem; color: white; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
-        .btn:active { background: var(--accent); transform: scale(0.9); }
+        #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; z-index: 100; }
+        .btn { width: 72px; height: 72px; background: rgba(255,255,255,0.05); border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); font-size: 1.5rem; color: white; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); transition: 0.2s; }
+        .btn:active { background: var(--accent); transform: scale(0.85); box-shadow: 0 0 20px var(--accent); }
     </style>
 </head>
 <body>
 
     <div id="ui">
         <div class="hud">
-            <div class="avatar">🤠</div>
+            <div class="avatar"></div>
             <div class="info">
                 <div class="item">STAGE <span class="val" id="curLv">1</span></div>
                 <div class="item">TIME <span class="val" id="tmD">00:00</span></div>
@@ -41,78 +41,25 @@
     </div>
 
 <script>
-    let scene, camera, renderer, hero, mazeGroup, portalCurtain;
-    let state = { r: 1, c: 1, er: 0, ec: 0, lv: 1, maze: [], time: 0, walking: false };
-    const step = 10;
-    const wallH = 20;
-
-    // --- 动态纹理 ---
-    function createTexture() {
-        const canvas = document.createElement('canvas');
-        canvas.width = 128; canvas.height = 128;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#444'; ctx.fillRect(0,0,128,128);
-        ctx.strokeStyle = '#222'; ctx.lineWidth = 4;
-        for(let i=0; i<4; i++) for(let j=0; j<2; j++) ctx.strokeRect(j*64+(i%2*32), i*32, 64, 32);
-        return new THREE.CanvasTexture(canvas);
-    }
-
-    // --- 创建卡通英雄角色 ---
-    function createHero() {
-        const group = new THREE.Group();
-        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x3498db });
-        const skinMat = new THREE.MeshStandardMaterial({ color: 0xffdbac });
-        
-        // 身体
-        const body = new THREE.Mesh(new THREE.BoxGeometry(5, 7, 3), bodyMat);
-        body.position.y = 8.5;
-        group.add(body);
-
-        // 头部
-        const head = new THREE.Mesh(new THREE.BoxGeometry(6, 6, 5), skinMat);
-        head.position.y = 15;
-        group.add(head);
-
-        // 帽子 (让他比墙高)
-        const hatBase = new THREE.Mesh(new THREE.BoxGeometry(8, 1, 7), new THREE.MeshStandardMaterial({color: 0x3e2723}));
-        hatBase.position.y = 18;
-        const hatTop = new THREE.Mesh(new THREE.BoxGeometry(5, 3, 4), new THREE.MeshStandardMaterial({color: 0x3e2723}));
-        hatTop.position.y = 20;
-        group.add(hatBase, hatTop);
-
-        // 手臂
-        const armGeo = new THREE.BoxGeometry(1.5, 5, 1.5);
-        const leftArm = new THREE.Mesh(armGeo, skinMat);
-        leftArm.position.set(-3.5, 9, 0);
-        const rightArm = leftArm.clone();
-        rightArm.position.x = 3.5;
-        group.add(leftArm, rightArm);
-
-        // 腿
-        const legGeo = new THREE.BoxGeometry(2, 5, 2);
-        const leftLeg = new THREE.Mesh(legGeo, bodyMat);
-        leftLeg.position.set(-1.5, 2.5, 0);
-        const rightLeg = leftLeg.clone();
-        rightLeg.position.x = 1.5;
-        group.add(leftLeg, rightLeg);
-
-        return group;
-    }
+    let scene, camera, renderer, hero, mazeGroup, portalCurtain, ears = [];
+    let state = { r: 1, c: 1, er: 0, ec: 0, lv: 1, maze: [], time: 0 };
+    const step = 10, wallH = 20;
 
     function init() {
         scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0a0a0a);
-        scene.fog = new THREE.Fog(0x0a0a0a, 20, 180);
+        scene.background = new THREE.Color(0x050508);
+        scene.fog = new THREE.Fog(0x050508, 10, 150);
 
         camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 1, 1000);
         renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-        const light = new THREE.DirectionalLight(0xffffff, 0.8);
-        light.position.set(10, 50, 20);
-        scene.add(light);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+        const pLight = new THREE.PointLight(0x00d2ff, 1.5, 100);
+        pLight.position.set(0, 50, 0);
+        scene.add(pLight);
 
         createMaze();
         animate();
@@ -123,15 +70,57 @@
         }, 1000);
     }
 
+    // --- 创建优化后的萌系守护灵 ---
+    function createHero() {
+        const group = new THREE.Group();
+        const mainMat = new THREE.MeshStandardMaterial({ 
+            color: 0xffffff, 
+            emissive: 0x00d2ff, 
+            emissiveIntensity: 0.2,
+            roughness: 0.3 
+        });
+        
+        // 身体：圆润的蛋形
+        const body = new THREE.Mesh(new THREE.SphereGeometry(4.5, 32, 32), mainMat);
+        body.scale.set(1, 1.2, 1);
+        body.position.y = 8;
+        group.add(body);
+
+        // 眼睛：大白眼+蓝瞳孔
+        const eyeGeo = new THREE.SphereGeometry(0.8, 16, 16);
+        const whiteMat = new THREE.MeshBasicMaterial({color: 0xffffff});
+        const blueMat = new THREE.MeshBasicMaterial({color: 0x00d2ff});
+        
+        [-1, 1].forEach(side => {
+            const eye = new THREE.Mesh(eyeGeo, whiteMat);
+            eye.position.set(side * 1.8, 10, 3.5);
+            const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), blueMat);
+            pupil.position.z = 0.5;
+            eye.add(pupil);
+            group.add(eye);
+        });
+
+        // 耳朵：会摆动的锥形
+        const earGeo = new THREE.ConeGeometry(1.2, 5, 12);
+        [-1, 1].forEach(side => {
+            const ear = new THREE.Mesh(earGeo, mainMat);
+            ear.position.set(side * 3, 13, 0);
+            ear.rotation.z = side * -0.4;
+            ears.push(ear);
+            group.add(ear);
+        });
+
+        return group;
+    }
+
     function createMaze() {
         if(mazeGroup) scene.remove(mazeGroup);
         mazeGroup = new THREE.Group();
         const dim = Math.min(35, 11 + Math.floor(state.lv / 5) * 2);
         state.maze = Array.from({length:dim}, () => Array(dim).fill(1));
         
-        let paths = [];
         const walk = (r, c) => {
-            state.maze[r][c] = 0; paths.push({r,c});
+            state.maze[r][c] = 0;
             [[0,2],[0,-2],[2,0],[-2,0]].sort(()=>Math.random()-0.5).forEach(([dr,dc]) => {
                 if(r+dr>0 && r+dr<dim-1 && c+dc>0 && c+dc<dim-1 && state.maze[r+dr][c+dc] == 1) {
                     state.maze[r+dr/2][c+dc/2] = 0; walk(r+dr, c+dc);
@@ -140,11 +129,13 @@
         };
         walk(1, 1);
 
-        let end = paths.filter(p => (p.r + p.c) > dim * 1.3).pop();
+        // 终点随机位置
+        let paths = [];
+        for(let r=0; r<dim; r++) for(let c=0; c<dim; c++) if(state.maze[r][c]==0) paths.push({r,c});
+        let end = paths.filter(p => (p.r + p.c) > dim * 1.4).pop();
         state.er = end.r; state.ec = end.c;
 
-        const tex = createTexture();
-        const wallMat = new THREE.MeshStandardMaterial({ map: tex, color: 0x888888 });
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x222228, roughness: 0.9 });
         const wallGeo = new THREE.BoxGeometry(step, wallH, step);
 
         for(let r=0; r<dim; r++) {
@@ -157,15 +148,11 @@
                 } else if(r == state.er && c == state.ec) {
                     // 传送门
                     const gate = new THREE.Group();
-                    const frameMat = new THREE.MeshStandardMaterial({color: 0x333});
-                    const p1 = new THREE.Mesh(new THREE.BoxGeometry(2, 18, 2), frameMat);
-                    p1.position.set(-4, 9, 0);
-                    const p2 = p1.clone(); p2.position.x = 4;
-                    const top = new THREE.Mesh(new THREE.BoxGeometry(10, 2, 2), frameMat);
-                    top.position.set(0, 18, 0);
-                    portalCurtain = new THREE.Mesh(new THREE.PlaneGeometry(6, 16), new THREE.MeshBasicMaterial({color: 0xe67e22, transparent: true, opacity: 0.5, side: 2}));
-                    portalCurtain.position.z = 0.1; portalCurtain.position.y = 8;
-                    gate.add(p1, p2, top, portalCurtain);
+                    const frame = new THREE.Mesh(new THREE.TorusGeometry(5, 0.8, 16, 32), new THREE.MeshStandardMaterial({color: 0x00d2ff, emissive: 0x00d2ff}));
+                    frame.position.y = 8;
+                    portalCurtain = new THREE.Mesh(new THREE.CircleGeometry(4.5, 32), new THREE.MeshBasicMaterial({color: 0x00d2ff, transparent: true, opacity: 0.4, side: 2}));
+                    portalCurtain.position.y = 8;
+                    gate.add(frame, portalCurtain);
                     gate.position.set(px, 0, pz);
                     mazeGroup.add(gate);
                 }
@@ -173,10 +160,7 @@
         }
         scene.add(mazeGroup);
 
-        if(!hero) {
-            hero = createHero();
-            scene.add(hero);
-        }
+        if(!hero) { hero = createHero(); scene.add(hero); }
         state.r = 1; state.c = 1;
         hero.position.set(1*step - (dim*step/2), 0, 1*step - (dim*step/2));
     }
@@ -184,19 +168,21 @@
     function animate() {
         requestAnimationFrame(animate);
         if(hero) {
-            const targetCam = new THREE.Vector3(hero.position.x, 60, hero.position.z + 50);
-            camera.position.lerp(targetCam, 0.1);
-            camera.lookAt(hero.position.x, 10, hero.position.z);
+            const targetCam = new THREE.Vector3(hero.position.x, 65, hero.position.z + 55);
+            camera.position.lerp(targetCam, 0.08);
+            camera.lookAt(hero.position.x, 5, hero.position.z);
             
-            // 走路动画：稍微摇晃
-            if(state.walking) {
-                hero.rotation.z = Math.sin(Date.now() * 0.01) * 0.1;
-                hero.position.y = Math.abs(Math.sin(Date.now() * 0.01)) * 1;
-            } else {
-                hero.rotation.z = 0; hero.position.y = 0;
-            }
+            // 浮动动画
+            hero.position.y = Math.sin(Date.now() * 0.003) * 1.2;
+            // 耳朵轻微摆动
+            ears.forEach((ear, i) => {
+                ear.rotation.x = Math.sin(Date.now() * 0.005 + i) * 0.2;
+            });
         }
-        if(portalCurtain) portalCurtain.material.opacity = 0.3 + Math.sin(Date.now()*0.005)*0.2;
+        if(portalCurtain) {
+            portalCurtain.rotation.z += 0.02;
+            portalCurtain.material.opacity = 0.2 + Math.abs(Math.sin(Date.now()*0.002)) * 0.4;
+        }
         renderer.render(scene, camera);
     }
 
@@ -209,17 +195,9 @@
         
         if(state.maze[nr] && state.maze[nr][nc] == 0) {
             state.r = nr; state.c = nc;
-            state.walking = true;
             const dim = state.maze.length;
-            const targetX = nc*step - (dim*step/2);
-            const targetZ = nr*step - (dim*step/2);
-            
-            // 简单的平移
-            hero.position.x = targetX;
-            hero.position.z = targetZ;
-
-            setTimeout(() => { state.walking = false; }, 100);
-
+            hero.position.x = nc*step - (dim*step/2);
+            hero.position.z = nr*step - (dim*step/2);
             if(nr == state.er && nc == state.ec) {
                 state.lv++; document.getElementById('curLv').innerText = state.lv; createMaze();
             }
