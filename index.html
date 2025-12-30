@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>迷宫守护者：波波球的百层试炼</title>
+    <title>迷宫守护者：波波球的试炼</title>
     <script src="https://cdn.staticfile.org/three.js/r128/three.min.js"></script>
     <style>
         :root { --accent: #2ecc71; --stone: #4a5568; --bg: #f3f0ff; }
@@ -12,18 +12,20 @@
         
         /* 游戏 UI */
         #ui { position: absolute; top: 15px; width: 94%; left: 3%; z-index: 2000; pointer-events: none; }
-        .hud { background: rgba(255,255,255,0.92); backdrop-filter: blur(10px); border-radius: 15px; padding: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); border: 1px solid white; display: flex; align-items: center; }
-        .hud-avatar { width: 40px; height: 40px; border-radius: 50%; background-image: url('https://via.placeholder.com/60/007bff/ffffff?text=B'); background-size: cover; margin-right: 12px; border: 2px solid var(--accent); flex-shrink: 0; }
+        .hud { background: rgba(255,255,255,0.92); backdrop-filter: blur(10px); border-radius: 15px; padding: 10px 15px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); border: 1px solid white; display: flex; align-items: center; }
+        /* 默认头像设计 */
+        .hud-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--accent); position: relative; overflow: hidden; border: 2px solid white; flex-shrink: 0; }
+        .hud-avatar::after { content: '● ●'; color: #222; font-size: 10px; position: absolute; top: 12px; left: 12px; }
         .hud-info { flex-grow: 1; display: flex; justify-content: space-around; }
         .hud-item { text-align: center; }
-        .hud-label { display: block; font-size: 0.6rem; color: #888; font-weight: bold; text-transform: uppercase; }
+        .hud-label { display: block; font-size: 0.6rem; color: #888; font-weight: bold; }
         .hud-val { color: var(--stone); font-weight: 900; font-size: 1.1rem; }
-        .hud-val-alt { color: var(--accent); }
 
-        /* 通关/进度层 */
-        #msgLayer { position: fixed; inset: 0; background: rgba(255,255,255,0.95); z-index: 5000; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-        .btn-main { background: var(--accent); color: white; border: none; padding: 15px 50px; border-radius: 30px; font-weight: bold; margin-top: 20px; font-size: 1.1rem; }
+        /* 消息提示 */
+        #msgLayer { position: fixed; inset: 0; background: rgba(255,255,255,0.95); z-index: 5000; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; }
+        .btn-main { background: var(--accent); color: white; border: none; padding: 15px 50px; border-radius: 30px; font-weight: bold; margin-top: 20px; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(46, 204, 113, 0.4); }
 
+        /* 操作轮盘 */
         #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; z-index: 2000; }
         .btn-move { width: 75px; height: 75px; background: white; border-radius: 20px; border: none; font-size: 1.6rem; color: var(--accent); box-shadow: 0 6px 0 #d5ede0; display: flex; align-items: center; justify-content: center; }
         .btn-move:active { transform: translateY(4px); box-shadow: 0 2px 0 #d5ede0; }
@@ -33,17 +35,18 @@
 
     <div id="ui">
         <div class="hud">
-            <div class="hud-avatar" style="background-image: url('https://i.imgur.com/your_bobo_avatar.png');"></div> <div class="hud-info">
-                <div class="hud-item"><span class="hud-label">Challenge</span><span class="hud-val"><span id="curLv" class="hud-val-alt">1</span> / 100</span></div>
-                <div class="hud-item"><span class="hud-label">Time</span><span id="tmD" class="hud-val">00:00</span></div>
+            <div class="hud-avatar"></div> 
+            <div class="hud-info">
+                <div class="hud-item"><span class="hud-label">LEVEL</span><span class="hud-val"><span id="curLv" style="color:var(--accent)">1</span> / 100</span></div>
+                <div class="hud-item"><span class="hud-label">TIME</span><span id="tmD" class="hud-val">00:00</span></div>
             </div>
         </div>
     </div>
 
     <div id="msgLayer">
-        <h1 id="msgTitle" style="color:var(--accent); margin-bottom:5px;">勇者无畏！</h1>
-        <p id="msgText" style="color:var(--stone);">迷宫守护者波波球成功完成所有 100 层试炼！</p >
-        <button class="btn-main" onclick="location.reload()">重新挑战</button>
+        <h1 id="msgTitle" style="color:var(--accent)">勇者达成！</h1>
+        <p id="msgText" style="color:var(--stone)">波波球完成了所有挑战</p >
+        <button class="btn-main" onclick="location.reload()">重新开始</button>
     </div>
 
     <div id="controls">
@@ -54,7 +57,7 @@
     </div>
 
 <script>
-    let scene, camera, renderer, player, mazeGroup;
+    let scene, camera, renderer, player, mazeGroup, gemMesh;
     let state = { r: 1, c: 1, lv: 1, maxLv: 100, maze: [], time: 0 };
     const step = 10;
 
@@ -63,10 +66,12 @@
     function initGame() {
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0xf3f0ff);
-        scene.fog = new THREE.Fog(0xf3f0ff, 60, 220);
+        
+        // 【优化】：增强迷雾效果，让远处不可见
+        scene.fog = new THREE.Fog(0xf3f0ff, 10, 80); 
 
-        camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1500);
-        camera.position.set(0, 130, 100);
+        camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 120, 90);
 
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setPixelRatio(window.devicePixelRatio);
@@ -74,8 +79,8 @@
         renderer.shadowMap.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.75));
-        const sun = new THREE.DirectionalLight(0xffffff, 0.65);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+        const sun = new THREE.DirectionalLight(0xffffff, 0.6);
         sun.position.set(40, 100, 40);
         sun.castShadow = true;
         scene.add(sun);
@@ -90,18 +95,16 @@
         }, 1000);
     }
 
-    // 可爱的波波球角色模型
     function createBobo() {
         const group = new THREE.Group();
-        // 身体
         const body = new THREE.Mesh(new THREE.SphereGeometry(4.5, 32, 16), new THREE.MeshStandardMaterial({ color: 0xffffff }));
         body.position.y = 4.5; body.castShadow = true; group.add(body);
-        // 眼睛
+        
         const eyeM = new THREE.MeshBasicMaterial({ color: 0x222222 });
         const e1 = new THREE.Mesh(new THREE.SphereGeometry(0.6, 12, 12), eyeM);
         e1.position.set(-1.5, 5.8, 3.8); group.add(e1);
         const e2 = e1.clone(); e2.position.x = 1.5; group.add(e2);
-        // 红晕
+
         const cheek = new THREE.Mesh(new THREE.CircleGeometry(0.8, 16), new THREE.MeshBasicMaterial({ color: 0xffb3ba, transparent: true, opacity: 0.6 }));
         const c1 = cheek.clone(); c1.position.set(-2.6, 4.4, 4.2); group.add(c1);
         const c2 = cheek.clone(); c2.position.set(2.6, 4.4, 4.2); group.add(c2);
@@ -125,13 +128,13 @@
         };
         walk(1,1);
         
+        // 强制破墙
         const end = dim - 2;
         state.maze[end][end] = 0;
         state.maze[end][end-1] = 0;
         state.maze[end-1][end] = 0;
 
-        const hue = (state.lv * 3) % 360;
-        const wallMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(`hsl(${hue}, 10%, 35%)`) });
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x4a5568 });
         const wallGeo = new THREE.BoxGeometry(step, 18, step);
 
         for(let r=0; r<dim; r++) {
@@ -141,10 +144,16 @@
                     const wall = new THREE.Mesh(wallGeo, wallMat);
                     wall.position.set(px, 9, pz); wall.castShadow = true; mazeGroup.add(wall);
                 } else if(r===end && c===end) {
-                    const goal = new THREE.Mesh(new THREE.CylinderGeometry(4.2,4.2,1.5,24), new THREE.MeshStandardMaterial({color: 0xffd700, emissive: 0xffd700}));
-                    goal.position.set(px, 0.7, pz); mazeGroup.add(goal);
-                    const beam = new THREE.Mesh(new THREE.CylinderGeometry(1,1,600,12), new THREE.MeshBasicMaterial({color: 0xffd700, transparent: true, opacity: 0.25}));
-                    beam.position.set(px, 300, pz); mazeGroup.add(beam);
+                    // 【优化】：不再是通天光柱，而是微光宝石
+                    const goal = new THREE.Mesh(new THREE.CylinderGeometry(4,4,1,16), new THREE.MeshStandardMaterial({color: 0x444444}));
+                    goal.position.set(px, 0.5, pz); mazeGroup.add(goal);
+                    
+                    gemMesh = new THREE.Mesh(
+                        new THREE.OctahedronGeometry(2.5, 0),
+                        new THREE.MeshStandardMaterial({color: 0xffd700, emissive: 0xffd700, emissiveIntensity: 0.8})
+                    );
+                    gemMesh.position.set(px, 10, pz);
+                    mazeGroup.add(gemMesh);
                 }
             }
         }
@@ -156,17 +165,19 @@
         }
         state.r = 1; state.c = 1;
         player.position.set(state.c*step-(dim*step/2), 0, state.r*step-(dim*step/2));
-        
-        player.children[0].material.color.setHSL(0, 0, 1 - (state.lv/200));
     }
 
     function animate() {
         requestAnimationFrame(animate);
         if(player) {
             camera.position.x += (player.position.x - camera.position.x) * 0.08;
-            camera.position.z += (player.position.z + 85 - camera.position.z) * 0.08;
+            camera.position.z += (player.position.z + 75 - camera.position.z) * 0.08;
             camera.lookAt(player.position.x, 5, player.position.z);
-            player.position.y = Math.abs(Math.sin(Date.now()*0.005)) * 1.8;
+            player.position.y = Math.abs(Math.sin(Date.now()*0.005)) * 1.5;
+        }
+        if(gemMesh) {
+            gemMesh.rotation.y += 0.02;
+            gemMesh.position.y = 10 + Math.sin(Date.now()*0.003) * 2;
         }
         renderer.render(scene, camera);
     }
@@ -189,8 +200,6 @@
                     document.getElementById('curLv').innerText = state.lv;
                     createMaze();
                 } else {
-                    document.getElementById('msgTitle').innerText = '勇者无畏！';
-                    document.getElementById('msgText').innerText = '迷宫守护者波波球成功完成所有 ' + state.maxLv + ' 层试炼！';
                     document.getElementById('msgLayer').style.display = 'flex';
                 }
             }
@@ -205,3 +214,4 @@
 </script>
 </body>
 </html>
+
