@@ -3,34 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>迷宫守护者：混沌深渊</title>
-    <script src="https://cdn.staticfile.org/three.js/r128/three.min.js"></script>
+    <title>迷宫守护者：混沌深渊 (兼容版)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        :root { --accent: #00ff88; --stone: #1a1a1a; --bg: #000000; }
+        :root { --accent: #00ff88; --bg: #000000; }
         * { touch-action: none; -webkit-user-select: none; box-sizing: border-box; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); overflow: hidden; font-family: 'Courier New', monospace; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: monospace; }
         
         #ui { position: absolute; top: 15px; width: 94%; left: 3%; z-index: 100; pointer-events: none; }
-        .hud { background: rgba(0,255,136,0.05); backdrop-filter: blur(10px); border-radius: 8px; padding: 12px; border: 1px solid var(--accent); display: flex; align-items: center; color: var(--accent); justify-content: space-around; }
-        .val { font-size: 1.2rem; font-weight: 900; text-shadow: 0 0 10px var(--accent); }
+        .hud { background: rgba(0,255,136,0.1); backdrop-filter: blur(5px); border-radius: 8px; padding: 12px; border: 1px solid var(--accent); display: flex; color: var(--accent); justify-content: space-around; }
+        .val { font-weight: 900; text-shadow: 0 0 5px var(--accent); }
 
         #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; z-index: 100; }
-        .btn { width: 70px; height: 70px; background: rgba(255,255,255,0.02); border: 1px solid var(--accent); border-radius: 50%; color: var(--accent); font-size: 1.5rem; display: flex; align-items: center; justify-content: center; }
-        .btn:active { background: var(--accent); color: black; box-shadow: 0 0 20px var(--accent); }
+        .btn { width: 65px; height: 65px; background: rgba(255,255,255,0.1); border: 1px solid var(--accent); border-radius: 50%; color: var(--accent); font-size: 1.5rem; display: flex; align-items: center; justify-content: center; }
+        .btn:active { background: var(--accent); color: #000; }
         
-        #msg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--accent); font-size: 2rem; display: none; z-index: 200; text-align: center; }
+        #msg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--accent); font-size: 1.5rem; display: none; z-index: 200; text-align: center; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px; }
     </style>
 </head>
 <body>
 
     <div id="ui">
         <div class="hud">
-            <div>FLOOR <span class="val" id="curLv">1</span></div>
-            <div>ENERGY <span class="val" id="timer">100</span>%</div>
+            <div>LV <span class="val" id="curLv">1</span></div>
+            <div>ENG <span class="val" id="timer">100</span>%</div>
         </div>
     </div>
 
-    <div id="msg">核心重启...</div>
+    <div id="msg">载入中...</div>
 
     <div id="controls">
         <div></div><button class="btn" onpointerdown="move('u')">▲</button><div></div>
@@ -40,24 +40,34 @@
     </div>
 
 <script>
+    // 确保脚本在资源加载后运行
+    window.onload = function() {
+        if (!window.THREE) {
+            alert("脚本库加载失败，请检查网络连接");
+            return;
+        }
+        init();
+    };
+
     let scene, camera, renderer, hero, mazeGroup, portal, heroLight;
     let state = { r: 0, c: 0, er: 0, ec: 0, lv: 1, maze: [], energy: 100, active: true };
-    const step = 10, wallH = 22;
+    const step = 10, wallH = 15; // 降低墙高，减少渲染面积
 
     function init() {
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
-        // 极近迷雾：增加压迫感
-        scene.fog = new THREE.Fog(0x000000, 5, 50);
+        // 适度调整迷雾，确保近处一定可见
+        scene.fog = new THREE.Fog(0x000000, 10, 80);
 
-        camera = new THREE.PerspectiveCamera(65, window.innerWidth/window.innerHeight, 1, 1000);
-        renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setPixelRatio(window.devicePixelRatio);
+        camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 1, 500);
+        
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // 限制像素比，提升性能
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.02));
-        heroLight = new THREE.PointLight(0x00ff88, 2, 60);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+        heroLight = new THREE.PointLight(0x00ff88, 2, 70);
         scene.add(heroLight);
 
         createMaze();
@@ -68,50 +78,42 @@
             state.energy -= 1;
             document.getElementById('timer').innerText = state.energy;
             if(state.energy <= 0) gameOver();
-        }, 800);
+        }, 1000);
     }
 
     function createMaze() {
         if(mazeGroup) scene.remove(mazeGroup);
         mazeGroup = new THREE.Group();
         
-        // 动态难度：迷宫尺寸
-        const dim = Math.min(51, 13 + state.lv * 2); 
+        const dim = Math.min(41, 15 + state.lv * 2); 
         state.maze = Array.from({length:dim}, () => Array(dim).fill(1));
         
-        const walk = (r, c) => {
+        function walk(r, c) {
             state.maze[r][c] = 0;
-            [[0,2],[0,-2],[2,0],[-2,0]].sort(()=>Math.random()-0.5).forEach(([dr,dc]) => {
+            const dirs = [[0,2],[0,-2],[2,0],[-2,0]].sort(()=>Math.random()-0.5);
+            for(let [dr, dc] of dirs) {
                 let nr = r+dr, nc = c+dc;
                 if(nr>0 && nr<dim-1 && nc>0 && nc<dim-1 && state.maze[nr][nc] == 1) {
-                    state.maze[r+dr/2][c+dc/2] = 0; walk(nr, nc);
+                    state.maze[r+dr/2][c+dc/2] = 0;
+                    walk(nr, nc);
                 }
-            });
-        };
-        // 算法生成：从随机位置开始挖掘
+            }
+        }
         walk(1, 1);
 
-        // 收集所有可行走路径点
         let paths = [];
         for(let r=1; r<dim-1; r++) for(let c=1; c<dim-1; c++) if(state.maze[r][c] === 0) paths.push({r,c});
 
-        // --- 核心更新：起点与终点双重随机 ---
-        // 1. 随机选取起点
-        let startIdx = Math.floor(Math.random() * paths.length);
-        let startPos = paths[startIdx];
-        state.r = startPos.r; state.c = startPos.c;
+        // 随机起点
+        let sP = paths[Math.floor(Math.random() * paths.length)];
+        state.r = sP.r; state.c = sP.c;
 
-        // 2. 寻找与起点直线距离最远的点作为终点候选（确保难度）
-        paths.sort((a, b) => {
-            let distA = Math.hypot(a.r - state.r, a.c - state.c);
-            let distB = Math.hypot(b.r - state.r, b.c - state.c);
-            return distB - distA;
-        });
-        // 取前5个最远点中的随机一个，避免位置过于单一
-        let endPos = paths[Math.floor(Math.random() * 5)];
-        state.er = endPos.r; state.ec = endPos.c;
+        // 随机终点（最远点）
+        paths.sort((a,b) => Math.hypot(b.r-state.r, b.c-state.c) - Math.hypot(a.r-state.r, a.c-state.c));
+        let eP = paths[Math.floor(Math.random() * Math.min(paths.length, 5))];
+        state.er = eP.r; state.ec = eP.c;
 
-        const wallMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 1 });
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
         const wallGeo = new THREE.BoxGeometry(step, wallH, step);
 
         for(let r=0; r<dim; r++) {
@@ -122,35 +124,24 @@
                     wall.position.set(px, wallH/2, pz);
                     mazeGroup.add(wall);
                 } else if(r == state.er && c == state.ec) {
-                    // 终点门
-                    const g = new THREE.Group();
-                    const ring = new THREE.Mesh(new THREE.TorusGeometry(4, 0.6, 16, 32), new THREE.MeshBasicMaterial({color: 0x00ff88}));
-                    ring.position.y = 8;
+                    const ring = new THREE.Mesh(new THREE.TorusGeometry(4, 0.8, 8, 24), new THREE.MeshBasicMaterial({color: 0x00ff88}));
+                    ring.position.set(px, 8, pz);
                     portal = ring;
-                    g.add(ring);
-                    g.position.set(px, 0, pz);
-                    mazeGroup.add(g);
+                    mazeGroup.add(ring);
                 }
             }
         }
         
-        const floor = new THREE.Mesh(new THREE.PlaneGeometry(dim*step, dim*step), new THREE.MeshStandardMaterial({color:0x050505}));
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(dim*step, dim*step), new THREE.MeshStandardMaterial({color:0x0a0a0a}));
         floor.rotation.x = -Math.PI/2;
         mazeGroup.add(floor);
         scene.add(mazeGroup);
 
         if(!hero) {
             hero = new THREE.Group();
-            // 守护灵角色
-            const body = new THREE.Mesh(new THREE.SphereGeometry(4, 32, 32), new THREE.MeshStandardMaterial({color:0xffffff, emissive:0x00ff88, emissiveIntensity:0.5}));
-            body.position.y = 10;
-            const eyes = new THREE.Group();
-            [-1.5, 1.5].forEach(x => {
-                const eye = new THREE.Mesh(new THREE.SphereGeometry(0.6, 8, 8), new THREE.MeshBasicMaterial({color:0x000000}));
-                eye.position.set(x, 11, 3.5);
-                eyes.add(eye);
-            });
-            hero.add(body, eyes);
+            const body = new THREE.Mesh(new THREE.SphereGeometry(4, 16, 16), new THREE.MeshStandardMaterial({color:0xffffff, emissive:0x00ff88, emissiveIntensity:0.3}));
+            body.position.y = 8;
+            hero.add(body);
             scene.add(hero);
         }
         updateHeroPos();
@@ -166,10 +157,10 @@
         requestAnimationFrame(animate);
         if(!state.active) return;
         if(hero) {
-            camera.position.lerp(new THREE.Vector3(hero.position.x, 70, hero.position.z + 45), 0.08);
-            camera.lookAt(hero.position.x, 5, hero.position.z);
-            heroLight.position.copy(hero.position).y = 15;
-            hero.position.y = Math.sin(Date.now() * 0.004) * 1.5;
+            const targetCam = new THREE.Vector3(hero.position.x, 70, hero.position.z + 40);
+            camera.position.lerp(targetCam, 0.1);
+            camera.lookAt(hero.position.x, 0, hero.position.z);
+            heroLight.position.copy(hero.position).y = 12;
         }
         if(portal) portal.rotation.y += 0.05;
         renderer.render(scene, camera);
@@ -185,14 +176,9 @@
             updateHeroPos();
             if(nr == state.er && nc == state.ec) {
                 state.lv++;
-                state.energy = Math.min(100, state.energy + 30);
+                state.energy = Math.min(100, state.energy + 40);
                 document.getElementById('curLv').innerText = state.lv;
-                document.getElementById('msg').innerText = "进入第 " + state.lv + " 层";
-                document.getElementById('msg').style.display = 'block';
-                setTimeout(() => { 
-                    document.getElementById('msg').style.display = 'none';
-                    createMaze(); 
-                }, 1000);
+                createMaze();
             }
         }
     };
@@ -209,8 +195,6 @@
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
     };
-
-    init();
 </script>
 </body>
 </html>
