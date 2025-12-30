@@ -3,51 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>迷宫守护者：波波球的试炼</title>
+    <title>迷宫守护者：波波球 100 关</title>
     <script src="https://cdn.staticfile.org/three.js/r128/three.min.js"></script>
     <style>
-        :root { --accent: #2ecc71; --stone: #4a5568; --bg: #f3f0ff; }
-        * { touch-action: none; -webkit-user-select: none; box-sizing: border-box; outline: none; }
+        :root { --accent: #2ecc71; --stone: #4a5568; --bg: #e5e9f0; }
+        * { touch-action: none; -webkit-user-select: none; box-sizing: border-box; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); overflow: hidden; font-family: sans-serif; }
         
-        #ui { position: absolute; top: 15px; width: 94%; left: 3%; z-index: 2000; pointer-events: none; }
-        .hud { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 15px; padding: 10px 15px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); border: 1px solid white; display: flex; align-items: center; }
-        .hud-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--accent); position: relative; border: 2px solid white; flex-shrink: 0; display:flex; align-items:center; justify-content:center; font-size:20px; color:white; font-weight:bold; }
-        .hud-info { flex-grow: 1; display: flex; justify-content: space-around; }
-        .hud-item { text-align: center; }
-        .hud-label { display: block; font-size: 0.6rem; color: #888; font-weight: bold; }
-        .hud-val { color: var(--stone); font-weight: 900; font-size: 1.1rem; }
+        /* 顶部 UI */
+        #ui { position: absolute; top: 15px; width: 94%; left: 3%; z-index: 100; pointer-events: none; }
+        .hud { background: rgba(255,255,255,0.95); border-radius: 15px; padding: 10px 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; align-items: center; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 20px; margin-right: 15px; border: 2px solid #fff; }
+        .info { flex: 1; display: flex; justify-content: space-around; }
+        .item { text-align: center; }
+        .label { display: block; font-size: 0.6rem; color: #888; font-weight: bold; }
+        .val { color: var(--stone); font-weight: 900; font-size: 1.1rem; }
 
-        #msgLayer { position: fixed; inset: 0; background: rgba(255,255,255,0.95); z-index: 5000; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; }
-        .btn-main { background: var(--accent); color: white; border: none; padding: 15px 50px; border-radius: 30px; font-weight: bold; margin-top: 20px; font-size: 1.1rem; }
-
-        #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; z-index: 2000; }
-        .btn-move { width: 75px; height: 75px; background: white; border-radius: 20px; border: none; font-size: 1.6rem; color: var(--accent); box-shadow: 0 6px 0 #d5ede0; display: flex; align-items: center; justify-content: center; }
-        .btn-move:active { transform: translateY(4px); box-shadow: 0 2px 0 #d5ede0; }
+        /* 操作键 */
+        #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; z-index: 100; }
+        .btn { width: 75px; height: 75px; background: white; border-radius: 20px; border: none; font-size: 1.6rem; color: var(--accent); box-shadow: 0 6px 0 #d5ede0; display: flex; align-items: center; justify-content: center; }
+        .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #d5ede0; }
     </style>
 </head>
 <body>
 
     <div id="ui">
         <div class="hud">
-            <div class="hud-avatar">B</div> 
-            <div class="hud-info">
-                <div class="hud-item"><span class="hud-label">LEVEL</span><span class="hud-val"><span id="curLv" style="color:var(--accent)">1</span> / 100</span></div>
-                <div class="hud-item"><span class="hud-label">TIME</span><span id="tmD" class="hud-val">00:00</span></div>
+            <div class="avatar">B</div>
+            <div class="info">
+                <div class="item"><span class="label">LEVEL</span><span class="val"><span id="curLv" style="color:var(--accent)">1</span> / 100</span></div>
+                <div class="item"><span class="label">TIME</span><span id="tmD" class="val">00:00</span></div>
             </div>
         </div>
     </div>
 
-    <div id="msgLayer">
-        <h1 id="msgTitle" style="color:var(--accent)">勇者达成！</h1>
-        <button class="btn-main" onclick="location.reload()">重新开始</button>
-    </div>
-
     <div id="controls">
-        <div></div><button class="btn-move" onpointerdown="move('u')">▲</button><div></div>
-        <button class="btn-move" onpointerdown="move('l')">◀</button>
-        <button class="btn-move" onpointerdown="move('d')">▼</button>
-        <button class="btn-move" onpointerdown="move('r')">▶</button>
+        <div></div><button class="btn" onpointerdown="move('u')">▲</button><div></div>
+        <button class="btn" onpointerdown="move('l')">◀</button>
+        <button class="btn" onpointerdown="move('d')">▼</button>
+        <button class="btn" onpointerdown="move('r')">▶</button>
     </div>
 
 <script>
@@ -55,34 +49,32 @@
     let state = { r: 1, c: 1, lv: 1, maxLv: 100, maze: [], time: 0 };
     const step = 10;
 
-    initGame(); // 直接执行
-
-    function initGame() {
+    // 初始化渲染器
+    function init() {
         scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xf3f0ff);
-        // 适当放宽迷雾距离，防止地图“消失”
-        scene.fog = new THREE.Fog(0xf3f0ff, 20, 150); 
-
-        camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000);
-        camera.position.set(0, 150, 100);
+        scene.background = new THREE.Color(0xe5e9f0);
+        
+        // 【关键修复】：将远距裁切调大，迷雾设为极淡，确保能看到地图
+        camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 1, 3000);
+        camera.position.set(0, 160, 120);
 
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-        const sun = new THREE.DirectionalLight(0xffffff, 0.6);
-        sun.position.set(50, 100, 50);
-        scene.add(sun);
+        const amb = new THREE.AmbientLight(0xffffff, 0.8);
+        scene.add(amb);
+        const dir = new THREE.DirectionalLight(0xffffff, 0.5);
+        dir.position.set(100, 200, 100);
+        scene.add(dir);
 
         createMaze();
         animate();
-        
+
         setInterval(() => {
             state.time++;
             const s = (state.time%60).toString().padStart(2,'0'), m = Math.floor(state.time/60).toString().padStart(2,'0');
-            document.getElementById('tmD').innerText = `${m}:${s}`;
+            document.getElementById('tmD').innerText = m + ":" + s;
         }, 1000);
     }
 
@@ -91,79 +83,78 @@
         mazeGroup = new THREE.Group();
         
         const dim = Math.min(35, 11 + Math.floor(state.lv / 5) * 2);
-        state.maze = Array.from({length:dim},()=>Array(dim).fill(1));
+        state.maze = Array.from({length:dim}, () => Array(dim).fill(1));
         
         const walk = (r, c) => {
             state.maze[r][c] = 0;
-            [[0,2],[0,-2],[2,0],[-2,0]].sort(()=>Math.random()-0.5).forEach(([dr,dc])=>{
-                if(r+dr>0 && r+dr<dim-1 && c+dc>0 && c+dc<dim-1 && state.maze[r+dr][c+dc]==1){
-                    state.maze[r+dr/2][c+dc/2]=0; walk(r+dr, c+dc);
+            [[0,2],[0,-2],[2,0],[-2,0]].sort(()=>Math.random()-0.5).forEach(([dr,dc]) => {
+                let nr = r+dr, nc = c+dc;
+                if(nr>0 && nr<dim-1 && nc>0 && nc<dim-1 && state.maze[nr][nc] == 1) {
+                    state.maze[r+dr/2][c+dc/2] = 0; walk(nr, nc);
                 }
             });
         };
-        walk(1,1);
+        walk(1, 1);
         
         const end = dim - 2;
         state.maze[end][end] = 0;
-        state.maze[end][end-1] = 0;
-        state.maze[end-1][end] = 0;
+        state.maze[end-1][end] = 0; state.maze[end][end-1] = 0; // 绝对连通
 
+        const wallGeo = new THREE.BoxGeometry(step * 0.95, 18, step * 0.95);
         const wallMat = new THREE.MeshStandardMaterial({ color: 0x4a5568 });
-        const wallGeo = new THREE.BoxGeometry(step, 18, step);
 
         for(let r=0; r<dim; r++) {
             for(let c=0; c<dim; c++) {
-                const px = c*step-(dim*step/2), pz = r*step-(dim*step/2);
-                if(state.maze[r][c] === 1) {
+                const px = c*step - (dim*step/2), pz = r*step - (dim*step/2);
+                if(state.maze[r][c] == 1) {
                     const wall = new THREE.Mesh(wallGeo, wallMat);
                     wall.position.set(px, 9, pz);
                     mazeGroup.add(wall);
-                } else if(r===end && c===end) {
-                    const goal = new THREE.Mesh(new THREE.CylinderGeometry(4,4,1,16), new THREE.MeshStandardMaterial({color: 0xcccccc}));
-                    goal.position.set(px, 0.5, pz); mazeGroup.add(goal);
-                    gemMesh = new THREE.Mesh(new THREE.OctahedronGeometry(2.5,0), new THREE.MeshStandardMaterial({color: 0xffd700, emissive: 0xffd700}));
-                    gemMesh.position.set(px, 10, pz); mazeGroup.add(gemMesh);
+                } else if(r == end && c == end) {
+                    // 只有走近才能看到的悬浮宝石
+                    gemMesh = new THREE.Mesh(new THREE.OctahedronGeometry(3,0), new THREE.MeshStandardMaterial({color: 0xffd700, emissive: 0xffd700}));
+                    gemMesh.position.set(px, 8, pz);
+                    mazeGroup.add(gemMesh);
                 }
             }
         }
         scene.add(mazeGroup);
 
         if(!player) {
-            player = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.SphereGeometry(4.5, 32, 16), new THREE.MeshStandardMaterial({ color: 0xffffff }));
-            body.position.y = 4.5; player.add(body);
+            player = new THREE.Mesh(new THREE.SphereGeometry(4, 24, 24), new THREE.MeshStandardMaterial({color: 0xffffff}));
             scene.add(player);
         }
         state.r = 1; state.c = 1;
-        updatePlayerPos(dim);
-    }
-
-    function updatePlayerPos(dim) {
-        player.position.set(state.c*step-(dim*step/2), 0, state.r*step-(dim*step/2));
+        player.position.set(state.c*step - (dim*step/2), 4, state.r*step - (dim*step/2));
     }
 
     function animate() {
         requestAnimationFrame(animate);
         if(player) {
             camera.position.x += (player.position.x - camera.position.x) * 0.1;
-            camera.position.z += (player.position.z + 80 - camera.position.z) * 0.1;
-            camera.lookAt(player.position.x, 5, player.position.z);
-            player.children[0].position.y = 4.5 + Math.abs(Math.sin(Date.now()*0.005)) * 2;
+            camera.position.z += (player.position.z + 100 - camera.position.z) * 0.1;
+            camera.lookAt(player.position.x, 0, player.position.z);
         }
-        if(gemMesh) gemMesh.rotation.y += 0.02;
+        if(gemMesh) gemMesh.rotation.y += 0.03;
         renderer.render(scene, camera);
     }
 
     window.move = (dir) => {
         let nr = state.r, nc = state.c;
         if(dir=='u') nr--; if(dir=='d') nr++; if(dir=='l') nc--; if(dir=='r') nc++;
-        if(state.maze[nr] && state.maze[nr][nc] === 0) {
+        
+        if(state.maze[nr] && state.maze[nr][nc] == 0) {
             state.r = nr; state.c = nc;
-            updatePlayerPos(state.maze.length);
-            if(nr === state.maze.length-2 && nc === state.maze.length-2) {
-                if(state.lv < state.maxLv) {
-                    state.lv++; document.getElementById('curLv').innerText = state.lv; createMaze();
-                } else { document.getElementById('msgLayer').style.display = 'flex'; }
+            const dim = state.maze.length;
+            player.position.set(nc*step - (dim*step/2), 4, nr*step - (dim*step/2));
+            
+            if(nr == dim-2 && nc == dim-2) {
+                state.lv++;
+                if(state.lv > 100) alert("你通关了！");
+                else {
+                    document.getElementById('curLv').innerText = state.lv;
+                    createMaze();
+                }
             }
         }
     };
@@ -173,6 +164,8 @@
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
     };
+
+    init(); // 执行初始化
 </script>
 </body>
 </html>
