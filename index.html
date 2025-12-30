@@ -16,10 +16,12 @@
         .hud-box { background: rgba(0, 40, 20, 0.6); padding: 8px 15px; border-radius: 10px; border: 1px solid var(--accent); backdrop-filter: blur(5px); }
         .val { font-weight: 900; font-size: 1.2rem; }
         
+        /* 进度条样式 */
         .progress-bar-bg { width: 100%; height: 6px; background: var(--gray); border-radius: 3px; overflow: hidden; margin-top: 5px; border: 1px solid rgba(0, 255, 136, 0.2); }
         #progress-fill { width: 1%; height: 100%; background: var(--accent); box-shadow: 0 0 10px var(--accent); transition: width 0.5s ease; }
 
         #reset-btn { position: absolute; top: 100px; left: 5%; pointer-events: auto; background: rgba(255,0,0,0.1); color: #ff4444; border: 1px solid #ff4444; padding: 4px 10px; border-radius: 5px; font-size: 11px; opacity: 0.6; }
+        #reset-btn:active { background: #ff4444; color: #fff; }
 
         #controls { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; z-index: 100; }
         .btn { width: 70px; height: 70px; background: rgba(0, 255, 136, 0.1); border: 2px solid var(--accent); border-radius: 15px; color: var(--accent); font-size: 1.5rem; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
@@ -84,6 +86,7 @@
             state.energy = Math.max(0, state.energy - 1);
             updateUI();
             if(state.energy <= 0) {
+                alert("能量耗尽！本层重来。");
                 state.energy = 100;
                 newLevel();
             }
@@ -92,6 +95,7 @@
 
     function newLevel() {
         localStorage.setItem('maze_hero_lv', state.lv);
+        // 迷宫尺寸随关卡动态增长，但不超过屏宽限制
         state.dim = Math.min(39, 11 + Math.floor(state.lv / 2) * 2);
         state.maze = Array.from({length: state.dim}, () => Array(state.dim).fill(1));
         
@@ -156,6 +160,7 @@
                     ctx.strokeStyle = 'rgba(0, 255, 136, 0.1)';
                     ctx.strokeRect(x, y, state.gridSize-2, state.gridSize-2);
                 } else if(r === state.er && c === state.ec) {
+                    // 终点门户
                     ctx.save();
                     ctx.translate(x + state.gridSize/2, y + state.gridSize/2);
                     ctx.rotate(state.anim);
@@ -169,6 +174,7 @@
             }
         }
 
+        // 主角绘制
         ctx.save();
         const breath = Math.sin(state.anim * 0.8) * 5;
         ctx.shadowBlur = 15 + breath;
@@ -179,6 +185,7 @@
         ctx.fill();
         ctx.restore();
 
+        // 视角阴影遮罩
         const grd = ctx.createRadialGradient(cx, cy, state.gridSize * 1, cx, cy, state.gridSize * 4.5);
         grd.addColorStop(0, 'rgba(0,0,0,0)');
         grd.addColorStop(1, 'rgba(5, 5, 10, 0.95)');
@@ -204,6 +211,7 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
     }
+
     window.onresize = resize;
     init();
 </script>
