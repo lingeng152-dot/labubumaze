@@ -3,22 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>M.O.L 3D - Ultimate Jungle</title>
+    <title>M.O.L 3D - Giant Hero Edition</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         :root { --green: #2ecc71; --stone: #4a5568; --bg: #d1e7dd; }
-        * { touch-action: none; -webkit-user-select: none; }
-        body { margin: 0; background: var(--bg); overflow: hidden; font-family: -apple-system, sans-serif; position: fixed; width: 100%; height: 100%; }
+        * { touch-action: none; -webkit-user-select: none; outline: none; }
+        body { margin: 0; background: var(--bg); overflow: hidden; font-family: sans-serif; position: fixed; width: 100%; height: 100%; }
         
         /* 顶部 UI */
         #ui { position: fixed; top: 15px; width: 90%; left: 5%; z-index: 1000; pointer-events: none; }
-        .hud { display: flex; justify-content: space-around; padding: 12px; background: rgba(255,255,255,0.85); backdrop-filter: blur(10px); border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); border: 1px solid white; }
+        .hud { display: flex; justify-content: space-around; padding: 12px; background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); border: 1px solid white; }
         .hud-val { color: var(--green); font-weight: 900; font-size: 1.1rem; display: block; text-align: center; }
-        .hud-label { color: #888; font-size: 0.6rem; font-weight: bold; text-transform: uppercase; }
+        .hud-label { color: #999; font-size: 0.6rem; font-weight: bold; }
 
-        /* 操作键 - 固定位置 */
-        #controls { position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; z-index: 1000; }
-        .btn { width: 72px; height: 72px; background: white; border-radius: 24px; border: none; font-size: 1.8rem; color: var(--green); box-shadow: 0 6px 0 #badbc9; display: flex; align-items: center; justify-content: center; outline: none; }
+        /* 操作键 */
+        #controls { position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; z-index: 1000; }
+        .btn { width: 75px; height: 75px; background: white; border-radius: 25px; border: none; font-size: 2rem; color: var(--green); box-shadow: 0 6px 0 #badbc9; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; }
         .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #badbc9; }
 
         #startLayer { position: fixed; inset: 0; background: var(--bg); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -29,8 +29,8 @@
 
     <div id="ui">
         <div class="hud">
-            <div><span class="hud-label">Level</span><span id="lvD" class="hud-val">1</span></div>
-            <div><span class="hud-label">Time</span><span id="tmD" class="hud-val">00:00</span></div>
+            <div><span class="hud-label">LEVEL</span><span id="lvD" class="hud-val">1</span></div>
+            <div><span class="hud-label">TIME</span><span id="tmD" class="hud-val">00:00</span></div>
         </div>
     </div>
 
@@ -43,8 +43,8 @@
 
     <div id="startLayer">
         <h1 style="color:var(--stone); font-size:3.5rem; margin:0; letter-spacing:-2px">M.O.L 3D</h1>
-        <p style="color:var(--green); letter-spacing:5px; font-size:0.8rem; margin-bottom:40px">STONE LABYRINTH</p >
-        <button class="start-btn" onclick="launch()">START ADVENTURE</button>
+        <p style="color:var(--green); letter-spacing:5px; font-size:0.8rem; margin-bottom:40px">BIGGER & BETTER</p >
+        <button class="start-btn" onclick="launch()">START GAME</button>
     </div>
 
 <script>
@@ -52,23 +52,17 @@
     let state = { r: 1, c: 1, lv: 1, maze: [], time: 0 };
     const step = 10;
 
-    // 创建更具立体感的深色石纹贴图
-    function createStoneTexture() {
+    function createStoneTex() {
         const canvas = document.createElement('canvas');
         canvas.width = 256; canvas.height = 256;
         const ctx = canvas.getContext('2d');
-        // 底色：深灰石色
         ctx.fillStyle = '#4a5568'; ctx.fillRect(0,0,256,256);
-        // 青苔与杂点
-        for(let i=0; i<500; i++) {
-            ctx.fillStyle = Math.random() > 0.8 ? '#2d3748' : '#27ae60';
-            ctx.globalAlpha = 0.2;
-            ctx.fillRect(Math.random()*256, Math.random()*256, 4, 4);
+        for(let i=0; i<400; i++) {
+            ctx.fillStyle = Math.random() > 0.7 ? '#2d3748' : '#2ecc71';
+            ctx.globalAlpha = 0.15;
+            ctx.fillRect(Math.random()*256, Math.random()*256, 6, 6);
         }
-        // 石砖缝隙感
-        ctx.globalAlpha = 0.5;
-        ctx.strokeStyle = '#2d3748';
-        ctx.strokeRect(0,0,256,256);
+        ctx.globalAlpha = 0.3; ctx.strokeStyle = '#2d3748'; ctx.strokeRect(0,0,256,256);
         return new THREE.CanvasTexture(canvas);
     }
 
@@ -78,27 +72,18 @@
         scene.fog = new THREE.Fog(0xd1e7dd, 40, 180);
 
         camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 85, 65); 
+        camera.position.set(0, 95, 75); // 相机也调高一点，配合大角色
 
         renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         document.body.appendChild(renderer.domElement);
 
-        // 光源：增强立体感的关键
         const sun = new THREE.DirectionalLight(0xffffff, 1.2);
-        sun.position.set(40, 80, 40);
-        sun.castShadow = true;
-        sun.shadow.mapSize.set(1024, 1024);
+        sun.position.set(40, 80, 40); sun.castShadow = true;
         scene.add(sun);
-
-        const fillLight = new THREE.PointLight(0xa9dfbf, 0.8);
-        fillLight.position.set(-40, 40, -40);
-        scene.add(fillLight);
-
-        scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
 
         createMaze();
         animate();
@@ -119,37 +104,29 @@
         };
         walk(1,1);
 
-        const wallTex = createStoneTexture();
-        const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9, metalness: 0.1 });
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0x2d3748, roughness: 0.8 }); // 深色地板
-        const wallGeo = new THREE.BoxGeometry(step, 18, step);
-        const floorGeo = new THREE.PlaneGeometry(step, step);
+        const wallTex = createStoneTex();
+        const wallMat = new THREE.MeshStandardMaterial({ map: wallTex });
+        const wallGeo = new THREE.BoxGeometry(step, 20, step); // 墙也加高一点
 
         for(let r=0; r<dim; r++) {
             for(let c=0; c<dim; c++) {
                 const px = c*step - (dim*step/2);
                 const pz = r*step - (dim*step/2);
-                
                 if(state.maze[r][c] === 1) {
                     const wall = new THREE.Mesh(wallGeo, wallMat);
-                    wall.position.set(px, 9, pz);
+                    wall.position.set(px, 10, pz);
                     wall.castShadow = true; wall.receiveShadow = true;
                     mazeGroup.add(wall);
-                    
-                    // 增加盖顶，增强立体感
+                    // 盖顶
                     const cap = new THREE.Mesh(new THREE.BoxGeometry(step+0.5, 1, step+0.5), new THREE.MeshStandardMaterial({color: 0x718096}));
-                    cap.position.set(px, 18, pz);
-                    mazeGroup.add(cap);
+                    cap.position.set(px, 20, pz); mazeGroup.add(cap);
                 } else {
-                    const floor = new THREE.Mesh(floorGeo, floorMat);
-                    floor.rotation.x = -Math.PI/2;
-                    floor.position.set(px, 0.05, pz);
-                    floor.receiveShadow = true;
-                    mazeGroup.add(floor);
-                    
+                    const floor = new THREE.Mesh(new THREE.PlaneGeometry(step, step), new THREE.MeshStandardMaterial({color: 0x2d3748}));
+                    floor.rotation.x = -Math.PI/2; floor.position.set(px, 0.1, pz);
+                    floor.receiveShadow = true; mazeGroup.add(floor);
                     if(r===dim-2 && c===dim-2) {
-                        const goal = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 2, 32), new THREE.MeshStandardMaterial({color: 0xfbbf24, emissive: 0xb45309}));
-                        goal.position.set(px, 1, pz); mazeGroup.add(goal);
+                        const goal = new THREE.Mesh(new THREE.CylinderGeometry(4,4,3,32), new THREE.MeshStandardMaterial({color: 0xfbbf24, emissive: 0xb45309}));
+                        goal.position.set(px, 1.5, pz); mazeGroup.add(goal);
                     }
                 }
             }
@@ -158,14 +135,15 @@
 
         if(!player) {
             const pGroup = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.SphereGeometry(4, 32, 32), new THREE.MeshStandardMaterial({color: 0x2ecc71, roughness: 0.3}));
-            body.position.y = 5; body.castShadow = true;
-            pGroup.add(body);
-            // 加上标志性的大耳朵
-            const earGeo = new THREE.ConeGeometry(1.2, 5, 16);
+            // 角色身体变大 (Sphere 4 -> 6)
+            const body = new THREE.Mesh(new THREE.SphereGeometry(5.5, 32, 32), new THREE.MeshStandardMaterial({color: 0x2ecc71, roughness: 0.3}));
+            body.position.y = 8; // 角色重心大幅抬高
+            body.castShadow = true; pGroup.add(body);
+            // 标志性大耳朵加长
+            const earGeo = new THREE.ConeGeometry(1.5, 7, 16);
             const earMat = new THREE.MeshStandardMaterial({color: 0x27ae60});
-            const e1 = new THREE.Mesh(earGeo, earMat); e1.position.set(-2, 9, 0); pGroup.add(e1);
-            const e2 = new THREE.Mesh(earGeo, earMat); e2.position.set(2, 9, 0); pGroup.add(e2);
+            const e1 = new THREE.Mesh(earGeo, earMat); e1.position.set(-2.5, 13, 0); pGroup.add(e1);
+            const e2 = new THREE.Mesh(earGeo, earMat); e2.position.set(2.5, 13, 0); pGroup.add(e2);
             player = pGroup;
             scene.add(player);
         }
@@ -183,10 +161,10 @@
         requestAnimationFrame(animate);
         if(player) {
             camera.position.x += (player.position.x - camera.position.x) * 0.05;
-            camera.position.z += (player.position.z + 55 - camera.position.z) * 0.05;
-            camera.lookAt(player.position.x, 2, player.position.z);
-            // 给 Labubu 加一点微弱的呼吸上下动效
-            player.children[0].position.y = 5 + Math.sin(Date.now()*0.005) * 0.2;
+            camera.position.z += (player.position.z + 65 - camera.position.z) * 0.05;
+            camera.lookAt(player.position.x, 5, player.position.z);
+            // 呼吸悬浮动效
+            player.position.y = Math.sin(Date.now()*0.004) * 1.5;
         }
         renderer.render(scene, camera);
     }
@@ -195,8 +173,7 @@
         let nr = state.r, nc = state.c;
         if(dir=='u') nr--; if(dir=='d') nr++; if(dir=='l') nc--; if(dir=='r') nc++;
         if(state.maze[nr] && state.maze[nr][nc] === 0) {
-            state.r = nr; state.c = nc;
-            updatePlayer();
+            state.r = nr; state.c = nc; updatePlayer();
             if(nr === state.maze.length-2 && nc === state.maze.length-2) {
                 state.lv++; document.getElementById('lvD').innerText = state.lv;
                 createMaze();
