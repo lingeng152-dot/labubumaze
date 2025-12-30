@@ -3,34 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>迷宫守护者：混沌深渊 (兼容版)</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <title>迷宫守护者：混沌深渊</title>
     <style>
-        :root { --accent: #00ff88; --bg: #000000; }
+        :root { --accent: #00ff88; --bg: #000; }
         * { touch-action: none; -webkit-user-select: none; box-sizing: border-box; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: monospace; }
+        canvas { display: block; width: 100vw; height: 100vh; }
         
-        #ui { position: absolute; top: 15px; width: 94%; left: 3%; z-index: 100; pointer-events: none; }
-        .hud { background: rgba(0,255,136,0.1); backdrop-filter: blur(5px); border-radius: 8px; padding: 12px; border: 1px solid var(--accent); display: flex; color: var(--accent); justify-content: space-around; }
-        .val { font-weight: 900; text-shadow: 0 0 5px var(--accent); }
+        #ui { position: absolute; top: 15px; width: 90%; left: 5%; z-index: 100; pointer-events: none; display: flex; justify-content: space-between; color: var(--accent); }
+        .val { font-weight: 900; font-size: 1.2rem; text-shadow: 0 0 10px var(--accent); }
 
-        #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; z-index: 100; }
-        .btn { width: 65px; height: 65px; background: rgba(255,255,255,0.1); border: 1px solid var(--accent); border-radius: 50%; color: var(--accent); font-size: 1.5rem; display: flex; align-items: center; justify-content: center; }
+        #controls { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; z-index: 100; }
+        .btn { width: 70px; height: 70px; background: rgba(0, 255, 136, 0.1); border: 2px solid var(--accent); border-radius: 50%; color: var(--accent); font-size: 1.5rem; display: flex; align-items: center; justify-content: center; }
         .btn:active { background: var(--accent); color: #000; }
         
-        #msg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--accent); font-size: 1.5rem; display: none; z-index: 200; text-align: center; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px; }
+        #msg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--accent); font-size: 1.5rem; display: none; z-index: 200; text-align: center; background: rgba(0,0,0,0.9); padding: 20px; border: 1px solid var(--accent); }
     </style>
 </head>
 <body>
 
     <div id="ui">
-        <div class="hud">
-            <div>LV <span class="val" id="curLv">1</span></div>
-            <div>ENG <span class="val" id="timer">100</span>%</div>
-        </div>
+        <div>FLOOR: <span class="val" id="lvD">1</span></div>
+        <div>ENERGY: <span class="val" id="engD">100</span>%</div>
     </div>
 
-    <div id="msg">载入中...</div>
+    <div id="msg">载入核心...</div>
+    <canvas id="gameCanvas"></canvas>
 
     <div id="controls">
         <div></div><button class="btn" onpointerdown="move('u')">▲</button><div></div>
@@ -40,60 +38,40 @@
     </div>
 
 <script>
-    // 确保脚本在资源加载后运行
-    window.onload = function() {
-        if (!window.THREE) {
-            alert("脚本库加载失败，请检查网络连接");
-            return;
-        }
-        init();
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    let state = {
+        lv: 1, energy: 100, active: true,
+        r: 0, c: 0, er: 0, ec: 0,
+        maze: [], dim: 15, gridSize: 0,
+        viewScale: 0.8 // 角色占格子的比例
     };
 
-    let scene, camera, renderer, hero, mazeGroup, portal, heroLight;
-    let state = { r: 0, c: 0, er: 0, ec: 0, lv: 1, maze: [], energy: 100, active: true };
-    const step = 10, wallH = 15; // 降低墙高，减少渲染面积
-
     function init() {
-        scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000000);
-        // 适度调整迷雾，确保近处一定可见
-        scene.fog = new THREE.Fog(0x000000, 10, 80);
-
-        camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 1, 500);
+        resize();
+        newLevel();
+        requestAnimationFrame(draw);
         
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // 限制像素比，提升性能
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
-
-        scene.add(new THREE.AmbientLight(0xffffff, 0.2));
-        heroLight = new THREE.PointLight(0x00ff88, 2, 70);
-        scene.add(heroLight);
-
-        createMaze();
-        animate();
-
         setInterval(() => {
             if(!state.active) return;
             state.energy -= 1;
-            document.getElementById('timer').innerText = state.energy;
-            if(state.energy <= 0) gameOver();
+            document.getElementById('engD').innerText = state.energy;
+            if(state.energy <= 0) die();
         }, 1000);
     }
 
-    function createMaze() {
-        if(mazeGroup) scene.remove(mazeGroup);
-        mazeGroup = new THREE.Group();
+    function newLevel() {
+        state.dim = Math.min(35, 11 + state.lv * 2);
+        state.maze = Array.from({length: state.dim}, () => Array(state.dim).fill(1));
         
-        const dim = Math.min(41, 15 + state.lv * 2); 
-        state.maze = Array.from({length:dim}, () => Array(dim).fill(1));
-        
+        // 迷宫生成算法
         function walk(r, c) {
             state.maze[r][c] = 0;
             const dirs = [[0,2],[0,-2],[2,0],[-2,0]].sort(()=>Math.random()-0.5);
             for(let [dr, dc] of dirs) {
                 let nr = r+dr, nc = c+dc;
-                if(nr>0 && nr<dim-1 && nc>0 && nc<dim-1 && state.maze[nr][nc] == 1) {
+                if(nr>0 && nr<state.dim-1 && nc>0 && nc<state.dim-1 && state.maze[nr][nc] == 1) {
                     state.maze[r+dr/2][c+dc/2] = 0;
                     walk(nr, nc);
                 }
@@ -101,100 +79,120 @@
         }
         walk(1, 1);
 
+        // 路径收集用于随机起点/终点
         let paths = [];
-        for(let r=1; r<dim-1; r++) for(let c=1; c<dim-1; c++) if(state.maze[r][c] === 0) paths.push({r,c});
+        for(let r=1; r<state.dim-1; r++) {
+            for(let c=1; c<state.dim-1; c++) {
+                if(state.maze[r][c] === 0) paths.push({r,c});
+            }
+        }
 
-        // 随机起点
-        let sP = paths[Math.floor(Math.random() * paths.length)];
-        state.r = sP.r; state.c = sP.c;
+        // 彻底随机位置
+        let start = paths[Math.floor(Math.random() * paths.length)];
+        state.r = start.r; state.c = start.c;
 
-        // 随机终点（最远点）
+        // 寻找最远点作为终点
         paths.sort((a,b) => Math.hypot(b.r-state.r, b.c-state.c) - Math.hypot(a.r-state.r, a.c-state.c));
-        let eP = paths[Math.floor(Math.random() * Math.min(paths.length, 5))];
-        state.er = eP.r; state.ec = eP.c;
+        let end = paths[Math.floor(Math.random() * Math.min(paths.length, 3))];
+        state.er = end.r; state.ec = end.c;
+    }
 
-        const wallMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-        const wallGeo = new THREE.BoxGeometry(step, wallH, step);
+    function draw() {
+        if(!state.active) return;
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        for(let r=0; r<dim; r++) {
-            for(let c=0; c<dim; c++) {
-                const px = c*step - (dim*step/2), pz = r*step - (dim*step/2);
-                if(state.maze[r][c] == 1) {
-                    const wall = new THREE.Mesh(wallGeo, wallMat);
-                    wall.position.set(px, wallH/2, pz);
-                    mazeGroup.add(wall);
-                } else if(r == state.er && c == state.ec) {
-                    const ring = new THREE.Mesh(new THREE.TorusGeometry(4, 0.8, 8, 24), new THREE.MeshBasicMaterial({color: 0x00ff88}));
-                    ring.position.set(px, 8, pz);
-                    portal = ring;
-                    mazeGroup.add(ring);
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+        state.gridSize = Math.min(canvas.width, canvas.height) / 8; // 保持视野大小固定
+
+        // 绘制迷宫（以玩家为中心平移）
+        const offsetX = cx - state.c * state.gridSize - state.gridSize/2;
+        const offsetY = cy - state.r * state.gridSize - state.gridSize/2;
+
+        for(let r=0; r<state.dim; r++) {
+            for(let c=0; c<state.dim; c++) {
+                let x = c * state.gridSize + offsetX;
+                let y = r * state.gridSize + offsetY;
+
+                // 性能优化：只绘制屏幕内的格子
+                if(x < -state.gridSize || x > canvas.width || y < -state.gridSize || y > canvas.height) continue;
+
+                if(state.maze[r][c] === 1) {
+                    ctx.fillStyle = '#1a1a1a';
+                    ctx.fillRect(x, y, state.gridSize+1, state.gridSize+1);
+                    ctx.strokeStyle = '#333';
+                    ctx.strokeRect(x, y, state.gridSize, state.gridSize);
+                } else if(r === state.er && c === state.ec) {
+                    // 绘制终点门
+                    ctx.strokeStyle = '#00ff88';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(x + state.gridSize/2, y + state.gridSize/2, state.gridSize/3, 0, Math.PI*2);
+                    ctx.stroke();
                 }
             }
         }
-        
-        const floor = new THREE.Mesh(new THREE.PlaneGeometry(dim*step, dim*step), new THREE.MeshStandardMaterial({color:0x0a0a0a}));
-        floor.rotation.x = -Math.PI/2;
-        mazeGroup.add(floor);
-        scene.add(mazeGroup);
 
-        if(!hero) {
-            hero = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.SphereGeometry(4, 16, 16), new THREE.MeshStandardMaterial({color:0xffffff, emissive:0x00ff88, emissiveIntensity:0.3}));
-            body.position.y = 8;
-            hero.add(body);
-            scene.add(hero);
-        }
-        updateHeroPos();
-    }
+        // 绘制主角（守护灵）
+        ctx.fillStyle = '#fff';
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#00ff88';
+        ctx.beginPath();
+        ctx.arc(cx, cy, (state.gridSize/2.5), 0, Math.PI*2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
 
-    function updateHeroPos() {
-        const dim = state.maze.length;
-        hero.position.x = state.c*step - (dim*step/2);
-        hero.position.z = state.r*step - (dim*step/2);
-    }
+        // 绘制探险迷雾/手电筒效果
+        const grd = ctx.createRadialGradient(cx, cy, state.gridSize * 0.5, cx, cy, state.gridSize * 3.5);
+        grd.addColorStop(0, 'rgba(0,0,0,0)');
+        grd.addColorStop(1, 'rgba(0,0,0,1)');
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    function animate() {
-        requestAnimationFrame(animate);
-        if(!state.active) return;
-        if(hero) {
-            const targetCam = new THREE.Vector3(hero.position.x, 70, hero.position.z + 40);
-            camera.position.lerp(targetCam, 0.1);
-            camera.lookAt(hero.position.x, 0, hero.position.z);
-            heroLight.position.copy(hero.position).y = 12;
-        }
-        if(portal) portal.rotation.y += 0.05;
-        renderer.render(scene, camera);
+        requestAnimationFrame(draw);
     }
 
     window.move = (dir) => {
         if(!state.active) return;
         let nr = state.r, nc = state.c;
-        if(dir=='u') nr--; if(dir=='d') nr++; if(dir=='l') nc--; if(dir=='r') nc++;
-        
-        if(state.maze[nr] && state.maze[nr][nc] == 0) {
+        if(dir === 'u') nr--;
+        if(dir === 'd') nr++;
+        if(dir === 'l') nc--;
+        if(dir === 'r') nc++;
+
+        if(state.maze[nr] && state.maze[nr][nc] === 0) {
             state.r = nr; state.c = nc;
-            updateHeroPos();
-            if(nr == state.er && nc == state.ec) {
+            if(nr === state.er && nc === state.ec) {
                 state.lv++;
-                state.energy = Math.min(100, state.energy + 40);
-                document.getElementById('curLv').innerText = state.lv;
-                createMaze();
+                state.energy = Math.min(100, state.energy + 30);
+                document.getElementById('lvD').innerText = state.lv;
+                showMsg("进入第 " + state.lv + " 层");
+                newLevel();
             }
         }
     };
 
-    function gameOver() {
+    function showMsg(txt) {
+        const m = document.getElementById('msg');
+        m.innerText = txt;
+        m.style.display = 'block';
+        setTimeout(() => m.style.display = 'none', 1000);
+    }
+
+    function die() {
         state.active = false;
-        document.getElementById('msg').innerText = "能量耗尽\n你在第 " + state.lv + " 层迷失了";
-        document.getElementById('msg').style.display = 'block';
+        showMsg("核心停机\n你在第 " + state.lv + " 层消失了");
         setTimeout(() => location.reload(), 3000);
     }
 
-    window.onresize = () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    };
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+
+    window.onresize = resize;
+    init();
 </script>
 </body>
 </html>
