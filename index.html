@@ -3,31 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>迷宫守护者：混沌深渊</title>
+    <title>迷宫守护者：高亮版</title>
     <style>
-        :root { --accent: #00ff88; --bg: #000; }
+        :root { --accent: #00ff88; --bg: #050508; }
         * { touch-action: none; -webkit-user-select: none; box-sizing: border-box; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: monospace; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); overflow: hidden; font-family: 'Segoe UI', sans-serif; }
         canvas { display: block; width: 100vw; height: 100vh; }
         
         #ui { position: absolute; top: 15px; width: 90%; left: 5%; z-index: 100; pointer-events: none; display: flex; justify-content: space-between; color: var(--accent); }
-        .val { font-weight: 900; font-size: 1.2rem; text-shadow: 0 0 10px var(--accent); }
+        .hud-box { background: rgba(0, 40, 20, 0.6); padding: 8px 15px; border-radius: 10px; border: 1px solid var(--accent); }
+        .val { font-weight: 900; font-size: 1.2rem; }
 
-        #controls { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; z-index: 100; }
-        .btn { width: 70px; height: 70px; background: rgba(0, 255, 136, 0.1); border: 2px solid var(--accent); border-radius: 50%; color: var(--accent); font-size: 1.5rem; display: flex; align-items: center; justify-content: center; }
-        .btn:active { background: var(--accent); color: #000; }
-        
-        #msg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--accent); font-size: 1.5rem; display: none; z-index: 200; text-align: center; background: rgba(0,0,0,0.9); padding: 20px; border: 1px solid var(--accent); }
+        #controls { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; z-index: 100; }
+        .btn { width: 70px; height: 70px; background: rgba(0, 255, 136, 0.1); border: 2px solid var(--accent); border-radius: 15px; color: var(--accent); font-size: 1.5rem; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        .btn:active { background: var(--accent); color: #000; scale: 0.9; }
     </style>
 </head>
 <body>
 
     <div id="ui">
-        <div>FLOOR: <span class="val" id="lvD">1</span></div>
-        <div>ENERGY: <span class="val" id="engD">100</span>%</div>
+        <div class="hud-box">FLOOR: <span class="val" id="lvD">1</span></div>
+        <div class="hud-box">ENERGY: <span class="val" id="engD">100</span>%</div>
     </div>
 
-    <div id="msg">载入核心...</div>
     <canvas id="gameCanvas"></canvas>
 
     <div id="controls">
@@ -45,68 +43,63 @@
         lv: 1, energy: 100, active: true,
         r: 0, c: 0, er: 0, ec: 0,
         maze: [], dim: 15, gridSize: 0,
-        viewScale: 0.8 // 角色占格子的比例
+        anim: 0
     };
 
     function init() {
         resize();
         newLevel();
-        requestAnimationFrame(draw);
+        animate();
         
         setInterval(() => {
             if(!state.active) return;
-            state.energy -= 1;
+            state.energy = Math.max(0, state.energy - 1);
             document.getElementById('engD').innerText = state.energy;
-            if(state.energy <= 0) die();
+            if(state.energy <= 0) alert("能量耗尽！重新开始。");
         }, 1000);
     }
 
     function newLevel() {
-        state.dim = Math.min(35, 11 + state.lv * 2);
+        state.dim = Math.min(31, 11 + Math.floor(state.lv / 2) * 2);
         state.maze = Array.from({length: state.dim}, () => Array(state.dim).fill(1));
         
-        // 迷宫生成算法
-        function walk(r, c) {
+        const walk = (r, c) => {
             state.maze[r][c] = 0;
             const dirs = [[0,2],[0,-2],[2,0],[-2,0]].sort(()=>Math.random()-0.5);
             for(let [dr, dc] of dirs) {
                 let nr = r+dr, nc = c+dc;
                 if(nr>0 && nr<state.dim-1 && nc>0 && nc<state.dim-1 && state.maze[nr][nc] == 1) {
-                    state.maze[r+dr/2][c+dc/2] = 0;
-                    walk(nr, nc);
+                    state.maze[r+dr/2][c+dc/2] = 0; walk(nr, nc);
                 }
             }
-        }
+        };
         walk(1, 1);
 
-        // 路径收集用于随机起点/终点
         let paths = [];
-        for(let r=1; r<state.dim-1; r++) {
-            for(let c=1; c<state.dim-1; c++) {
-                if(state.maze[r][c] === 0) paths.push({r,c});
-            }
-        }
-
-        // 彻底随机位置
+        for(let r=1; r<state.dim-1; r++) for(let c=1; c<state.dim-1; c++) if(state.maze[r][c] === 0) paths.push({r,c});
+        
+        // 随机起点和终点
         let start = paths[Math.floor(Math.random() * paths.length)];
         state.r = start.r; state.c = start.c;
-
-        // 寻找最远点作为终点
         paths.sort((a,b) => Math.hypot(b.r-state.r, b.c-state.c) - Math.hypot(a.r-state.r, a.c-state.c));
-        let end = paths[Math.floor(Math.random() * Math.min(paths.length, 3))];
+        let end = paths[0]; // 绝对的最远点
         state.er = end.r; state.ec = end.c;
     }
 
+    function animate() {
+        state.anim += 0.05;
+        draw();
+        requestAnimationFrame(animate);
+    }
+
     function draw() {
-        if(!state.active) return;
-        ctx.fillStyle = '#000';
+        ctx.fillStyle = '#050508';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         const cx = canvas.width / 2;
         const cy = canvas.height / 2;
-        state.gridSize = Math.min(canvas.width, canvas.height) / 8; // 保持视野大小固定
+        state.gridSize = Math.min(canvas.width, canvas.height) / 7;
 
-        // 绘制迷宫（以玩家为中心平移）
         const offsetX = cx - state.c * state.gridSize - state.gridSize/2;
         const offsetY = cy - state.r * state.gridSize - state.gridSize/2;
 
@@ -115,76 +108,70 @@
                 let x = c * state.gridSize + offsetX;
                 let y = r * state.gridSize + offsetY;
 
-                // 性能优化：只绘制屏幕内的格子
                 if(x < -state.gridSize || x > canvas.width || y < -state.gridSize || y > canvas.height) continue;
 
                 if(state.maze[r][c] === 1) {
-                    ctx.fillStyle = '#1a1a1a';
-                    ctx.fillRect(x, y, state.gridSize+1, state.gridSize+1);
-                    ctx.strokeStyle = '#333';
-                    ctx.strokeRect(x, y, state.gridSize, state.gridSize);
+                    // 墙体设计：深灰带浅绿描边，增加可见度
+                    ctx.fillStyle = '#1a1a25';
+                    ctx.fillRect(x, y, state.gridSize-2, state.gridSize-2);
+                    ctx.strokeStyle = 'rgba(0, 255, 136, 0.15)';
+                    ctx.strokeRect(x, y, state.gridSize-2, state.gridSize-2);
                 } else if(r === state.er && c === state.ec) {
-                    // 绘制终点门
-                    ctx.strokeStyle = '#00ff88';
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    ctx.arc(x + state.gridSize/2, y + state.gridSize/2, state.gridSize/3, 0, Math.PI*2);
-                    ctx.stroke();
+                    // 终点门：高亮绿色旋转圆环
+                    ctx.save();
+                    ctx.translate(x + state.gridSize/2, y + state.gridSize/2);
+                    ctx.rotate(state.anim);
+                    ctx.strokeStyle = varColor('--accent');
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = varColor('--accent');
+                    ctx.strokeRect(-state.gridSize/4, -state.gridSize/4, state.gridSize/2, state.gridSize/2);
+                    ctx.restore();
                 }
             }
         }
 
-        // 绘制主角（守护灵）
-        ctx.fillStyle = '#fff';
-        ctx.shadowBlur = 15;
+        // 绘制主角：带呼吸灯效果的守护灵
+        ctx.save();
+        const breath = Math.sin(state.anim) * 5;
+        ctx.shadowBlur = 20 + breath;
         ctx.shadowColor = '#00ff88';
+        ctx.fillStyle = '#fff';
         ctx.beginPath();
-        ctx.arc(cx, cy, (state.gridSize/2.5), 0, Math.PI*2);
+        ctx.arc(cx, cy, (state.gridSize/3), 0, Math.PI*2);
         ctx.fill();
-        ctx.shadowBlur = 0;
+        // 眼睛
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(cx - 5, cy - 2, 3, 0, Math.PI*2);
+        ctx.arc(cx + 5, cy - 2, 3, 0, Math.PI*2);
+        ctx.fill();
+        ctx.restore();
 
-        // 绘制探险迷雾/手电筒效果
-        const grd = ctx.createRadialGradient(cx, cy, state.gridSize * 0.5, cx, cy, state.gridSize * 3.5);
-        grd.addColorStop(0, 'rgba(0,0,0,0)');
-        grd.addColorStop(1, 'rgba(0,0,0,1)');
+        // 核心改进：优化后的环境遮罩
+        const grd = ctx.createRadialGradient(cx, cy, state.gridSize * 0.8, cx, cy, state.gridSize * 4);
+        grd.addColorStop(0, 'rgba(0,0,0,0)');       // 角色中心完全透明
+        grd.addColorStop(0.4, 'rgba(5, 5, 10, 0.2)'); // 周围只有淡淡的灰影
+        grd.addColorStop(1, 'rgba(5, 5, 10, 0.95)'); // 远处才是深色，但不全黑
         ctx.fillStyle = grd;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
 
-        requestAnimationFrame(draw);
+    function varColor(name) {
+        return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
     }
 
     window.move = (dir) => {
-        if(!state.active) return;
         let nr = state.r, nc = state.c;
-        if(dir === 'u') nr--;
-        if(dir === 'd') nr++;
-        if(dir === 'l') nc--;
-        if(dir === 'r') nc++;
-
+        if(dir === 'u') nr--; if(dir === 'd') nr++; if(dir === 'l') nc--; if(dir === 'r') nc++;
         if(state.maze[nr] && state.maze[nr][nc] === 0) {
             state.r = nr; state.c = nc;
             if(nr === state.er && nc === state.ec) {
-                state.lv++;
-                state.energy = Math.min(100, state.energy + 30);
+                state.lv++; state.energy = Math.min(100, state.energy + 40);
                 document.getElementById('lvD').innerText = state.lv;
-                showMsg("进入第 " + state.lv + " 层");
                 newLevel();
             }
         }
     };
-
-    function showMsg(txt) {
-        const m = document.getElementById('msg');
-        m.innerText = txt;
-        m.style.display = 'block';
-        setTimeout(() => m.style.display = 'none', 1000);
-    }
-
-    function die() {
-        state.active = false;
-        showMsg("核心停机\n你在第 " + state.lv + " 层消失了");
-        setTimeout(() => location.reload(), 3000);
-    }
 
     function resize() {
         canvas.width = window.innerWidth;
